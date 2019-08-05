@@ -81,7 +81,7 @@ def polygon_area(poly):
     ]
     return np.sum(edge)/2.
 
-
+# ？？？
 def check_and_validate_polys(polys, tags, xxx_todo_changeme):
     '''
     check so that the text poly is in the same direction,
@@ -459,7 +459,8 @@ def restore_rectangle_rbox(origin, geometry):
 def restore_rectangle(origin, geometry):
     return restore_rectangle_rbox(origin, geometry)
 
-
+# this is core method for samples making
+# 这个应该是最核心的样本数据准备的过程了,im_size现在是512x512
 def generate_rbox(im_size, polys, tags):
     h, w = im_size
     poly_mask = np.zeros((h, w), dtype=np.uint8)
@@ -611,24 +612,26 @@ def generator(input_size=512, batch_size=32,
                 text_polys, text_tags = check_and_validate_polys(text_polys, text_tags, (h, w))
                 # if text_polys.shape[0] == 0:
                 #     continue
-                # random scale this image
+                # random scale this image，为何要随机resize一下，做样本增强么？
                 rd_scale = np.random.choice(random_scale)
                 im = cv2.resize(im, dsize=None, fx=rd_scale, fy=rd_scale)
                 text_polys *= rd_scale
-                # print rd_scale
+
                 # random crop a area from image
-                if np.random.rand() < background_ratio:
+                if np.random.rand() < background_ratio: #background_ratio=3./8
                     # crop background
                     im, text_polys, text_tags = crop_area(im, text_polys, text_tags, crop_background=True)
                     if text_polys.shape[0] > 0:
                         # cannot find background
                         continue
-                    # pad and resize image
+
+                    # pad and resize image,最终图片变成512x512，图像不变形，padding补足
                     new_h, new_w, _ = im.shape
                     max_h_w_i = np.max([new_h, new_w, input_size])
                     im_padded = np.zeros((max_h_w_i, max_h_w_i, 3), dtype=np.uint8)
                     im_padded[:new_h, :new_w, :] = im.copy()
                     im = cv2.resize(im_padded, dsize=(input_size, input_size))
+
                     score_map = np.zeros((input_size, input_size), dtype=np.uint8)
                     geo_map_channels = 5 if FLAGS.geometry == 'RBOX' else 8
                     geo_map = np.zeros((input_size, input_size, geo_map_channels), dtype=np.float32)
@@ -647,9 +650,11 @@ def generator(input_size=512, batch_size=32,
                     im = im_padded
                     # resize the image to input size
                     new_h, new_w, _ = im.shape
-                    resize_h = input_size
+                    resize_h = input_size # 强制改成512了啊！
                     resize_w = input_size
                     im = cv2.resize(im, dsize=(resize_w, resize_h))
+
+                    # 把标注坐标缩放
                     resize_ratio_3_x = resize_w/float(new_w)
                     resize_ratio_3_y = resize_h/float(new_h)
                     text_polys[:, :, 0] *= resize_ratio_3_x
