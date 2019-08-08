@@ -2,7 +2,7 @@ import time
 import numpy as np
 import tensorflow as tf
 from tensorflow.contrib import slim
-
+from debug_tool import enable_pystack
 tf.app.flags.DEFINE_integer('input_size', 512, '')
 tf.app.flags.DEFINE_integer('batch_size_per_gpu', 14, '')
 tf.app.flags.DEFINE_integer('num_readers', 16, '')
@@ -146,11 +146,12 @@ def main(argv=None):
 
         data_generator = icdar.get_batch(num_workers=FLAGS.num_readers,
                                          input_size=FLAGS.input_size,
-                                         batch_size=FLAGS.batch_size_per_gpu * len(gpus))
+                                         batch_size=FLAGS.batch_size_per_gpu )
 
         start = time.time()
         for step in range(FLAGS.max_steps):
             data = next(data_generator)
+            print("generator next to get a new data:" , data)
             ml, tl, _ = sess.run([model_loss, total_loss, train_op], feed_dict={input_images: data[0],
                                                                                 input_score_maps: data[2],
                                                                                 input_geo_maps: data[3],
@@ -177,4 +178,5 @@ def main(argv=None):
                 summary_writer.add_summary(summary_str, global_step=step)
 
 if __name__ == '__main__':
+    enable_pystack()
     tf.app.run()

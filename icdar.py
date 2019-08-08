@@ -5,6 +5,7 @@ import cv2
 import time
 import os
 import numpy as np
+import pdb
 import scipy.optimize
 import matplotlib.pyplot as plt
 import matplotlib.patches as Patches
@@ -92,12 +93,14 @@ def check_and_validate_polys(polys, tags, xxx_todo_changeme):
     '''
     (h, w) = xxx_todo_changeme
     if polys.shape[0] == 0:
+        print("polys shape is 0:",polys.shape)
         return polys
     polys[:, :, 0] = np.clip(polys[:, :, 0], 0, w-1)
     polys[:, :, 1] = np.clip(polys[:, :, 1], 0, h-1)
 
     validated_polys = []
     validated_tags = []
+    print("begin to process poly & tag")
     for poly, tag in zip(polys, tags):
         p_area = polygon_area(poly)
         if abs(p_area) < 1:
@@ -109,6 +112,7 @@ def check_and_validate_polys(polys, tags, xxx_todo_changeme):
             poly = poly[(0, 3, 2, 1), :]
         validated_polys.append(poly)
         validated_tags.append(tag)
+    print("finish polys process:%d,%d" % (len(validated_polys),len(validated_tags)))
     return np.array(validated_polys), np.array(validated_tags)
 
 
@@ -140,6 +144,7 @@ def crop_area(im, polys, tags, crop_background=False, max_tries=50):
     w_axis = np.where(w_array == 0)[0]
     if len(h_axis) == 0 or len(w_axis) == 0:
         return im, polys, tags
+    print("maxretry:",max_tries)
     for i in range(max_tries):
         xx = np.random.choice(w_axis, size=2)
         xmin = np.min(xx) - pad_w
@@ -163,6 +168,7 @@ def crop_area(im, polys, tags, crop_background=False, max_tries=50):
         if len(selected_polys) == 0:
             # no text in this area
             if crop_background:
+                print("crop_background")
                 return im[ymin:ymax+1, xmin:xmax+1, :], polys[selected_polys], tags[selected_polys]
             else:
                 continue
@@ -171,6 +177,7 @@ def crop_area(im, polys, tags, crop_background=False, max_tries=50):
         tags = tags[selected_polys]
         polys[:, :, 0] -= xmin
         polys[:, :, 1] -= ymin
+        print("crop return:", im, polys, tags)
         return im, polys, tags
 
     return im, polys, tags
@@ -585,10 +592,13 @@ def generator(input_size=512, batch_size=32,
               background_ratio=3./8,
               random_scale=np.array([0.5, 1, 2.0, 3.0]),
               vis=False):
+    # 获得训练集路径下所有图片名字
     image_list = np.array(get_images())
     print('{} training images in {}'.format(
         image_list.shape[0], FLAGS.training_data_path))
+    # index：总样本数
     index = np.arange(0, image_list.shape[0])
+    # pdb.set_trace()
     while True:
         np.random.shuffle(index)
         images = []
@@ -596,35 +606,52 @@ def generator(input_size=512, batch_size=32,
         score_maps = []
         geo_maps = []
         training_masks = []
+        print("begin to loop,length:",len(index))
+        count=0
         for i in index:
             try:
+                # 读取图片
                 im_fn = image_list[i]
-                im = cv2.imread(im_fn)
-                # print im_fn
-                h, w, _ = im.shape
+                _image = cv2.imread(im_fn)
+                print ("image name：",im_fn)
+                h, w, _ = _image.shape
+
+                # 读取标签txt
                 txt_fn = im_fn.replace(os.path.basename(im_fn).split('.')[1], 'txt')
                 if not os.path.exists(txt_fn):
                     print('text file {} does not exists'.format(txt_fn))
                     continue
 
+                print("read out txt file",txt_fn)
+                # 读出对应label文档中的内容
+                # text_polys：样本中文字坐标
+                # text_tags：文字框内容是否可辨识
                 text_polys, text_tags = load_annoataion(txt_fn)
-
+                print("read out text_polys:", text_polys.shape)
+                # 保存其中的有效标签框，并修正文本框坐标溢出边界现象
                 text_polys, text_tags = check_and_validate_polys(text_polys, text_tags, (h, w))
                 # if text_polys.shape[0] == 0:
                 #     continue
                 # random scale this image，为何要随机resize一下，做样本增强么？
+                print("random_scale",random_scale)
                 rd_scale = np.random.choice(random_scale)
-                im = cv2.resize(im, dsize=None, fx=rd_scale, fy=rd_scale)
+                print("image：", _image.shape)
+                # time.sleep(100000000)
+                new_size = (int(w*rd_scale),int(h*rd_scale))
+                print("new size:",new_size)
+                im = cv2.resize(_image, dsize=(640, 360))
+                print("resize image,",im.shape)
                 text_polys *= rd_scale
 
                 # random crop a area from image
                 if np.random.rand() < background_ratio: #background_ratio=3./8
+                    print("background_ratio1",im_fn)
                     # crop background
                     im, text_polys, text_tags = crop_area(im, text_polys, text_tags, crop_background=True)
                     if text_polys.shape[0] > 0:
-                        # cannot find background
+                        print("cannot find background",im_fn)
                         continue
-
+                    print("1")
                     # pad and resize image,最终图片变成512x512，图像不变形，padding补足
                     new_h, new_w, _ = im.shape
                     max_h_w_i = np.max([new_h, new_w, input_size])
@@ -636,30 +663,44 @@ def generator(input_size=512, batch_size=32,
                     geo_map_channels = 5 if FLAGS.geometry == 'RBOX' else 8
                     geo_map = np.zeros((input_size, input_size, geo_map_channels), dtype=np.float32)
                     training_mask = np.ones((input_size, input_size), dtype=np.uint8)
+                    print("2")
                 else:
+                    print("background_ratio2:",im_fn)
                     im, text_polys, text_tags = crop_area(im, text_polys, text_tags, crop_background=False)
                     if text_polys.shape[0] == 0:
+                        print("text_polys shapie is 0:", im_fn.shape,text_polys.shape)
                         continue
+                    print("3")
                     h, w, _ = im.shape
-
+                    print("4")
                     # pad the image to the training input size or the longer side of image
                     new_h, new_w, _ = im.shape
+                    print("5")
                     max_h_w_i = np.max([new_h, new_w, input_size])
+                    print("6")
                     im_padded = np.zeros((max_h_w_i, max_h_w_i, 3), dtype=np.uint8)
+                    print("6")
                     im_padded[:new_h, :new_w, :] = im.copy()
+                    print("8")
                     im = im_padded
                     # resize the image to input size
                     new_h, new_w, _ = im.shape
+                    print("9")
                     resize_h = input_size # 强制改成512了啊！
                     resize_w = input_size
+                    print("10")
                     im = cv2.resize(im, dsize=(resize_w, resize_h))
-
+                    print("11")
                     # 把标注坐标缩放
                     resize_ratio_3_x = resize_w/float(new_w)
                     resize_ratio_3_y = resize_h/float(new_h)
+                    print("12")
                     text_polys[:, :, 0] *= resize_ratio_3_x
                     text_polys[:, :, 1] *= resize_ratio_3_y
+                    print("13")
                     new_h, new_w, _ = im.shape
+
+                    print("prapre to generate the rbox,i=",i)
                     score_map, geo_map, training_mask = generate_rbox((new_h, new_w), text_polys, text_tags)
 
                 if vis:
@@ -711,14 +752,18 @@ def generator(input_size=512, batch_size=32,
                 geo_maps.append(geo_map[::4, ::4, :].astype(np.float32))
                 training_masks.append(training_mask[::4, ::4, np.newaxis].astype(np.float32))
 
+                count+=1
+                print("one image processed, add to array:",count)
                 if len(images) == batch_size:
+                    print("i am yield:",images)
                     yield images, image_fns, score_maps, geo_maps, training_masks
                     images = []
                     image_fns = []
                     score_maps = []
                     geo_maps = []
                     training_masks = []
-            except Exception as e:
+            except BaseException as e:
+                print("Error happened:",str(e))
                 import traceback
                 traceback.print_exc()
                 continue
@@ -734,9 +779,11 @@ def get_batch(num_workers, **kwargs):
             while enqueuer.is_running():
                 if not enqueuer.queue.empty():
                     generator_output = enqueuer.queue.get()
+                    print ("get a generator output:" , generator_output)
                     break
                 else:
-                    time.sleep(0.01)
+                    #print("queue is empty, which cause we are wating....")
+                    time.sleep(1)
             yield generator_output
             generator_output = None
     finally:

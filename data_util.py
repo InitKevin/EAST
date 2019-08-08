@@ -45,14 +45,20 @@ class GeneratorEnqueuer():
             max_queue_size: queue size
                 (when full, threads could block on `put()`)
         """
-
+        import os
         def data_generator_task():
+            print("the process was created,pid:",os.getpid())
+            from debug_tool import enable_pystack
+            enable_pystack()
             while not self._stop_event.is_set():
                 try:
                     if self._use_multiprocessing or self.queue.qsize() < max_queue_size:
+                        print("try to generate some data")
                         generator_output = next(self._generator)
+                        print("i collect a batch data, trying to put them into the queue:",generator_output)
                         self.queue.put(generator_output)
                     else:
+                        print("the queue was full...")
                         time.sleep(self.wait_time)
                 except Exception:
                     self._stop_event.set()
@@ -60,9 +66,11 @@ class GeneratorEnqueuer():
 
         try:
             if self._use_multiprocessing:
+                print("we use multi-process...")
                 self.queue = multiprocessing.Queue(maxsize=max_queue_size)
                 self._stop_event = multiprocessing.Event()
             else:
+                print("we use multi-thread...")
                 self.queue = queue.Queue()
                 self._stop_event = threading.Event()
 

@@ -1,3 +1,4 @@
+# coding=utf-8
 import tensorflow as tf
 import numpy as np
 
@@ -34,23 +35,27 @@ def model(images, weight_decay=1e-5, is_training=True):
     '''
     define the model, we use slim's implemention of resnet
     '''
+    # 对RGB像素做标准化，即减去均值
     images = mean_image_subtraction(images)
 
+    # 先将图片经过resnet_v1网络
+    # 得到resnet_v1的全部stage的输出，存在end_points里面
     with slim.arg_scope(resnet_v1.resnet_arg_scope(weight_decay=weight_decay)):
         logits, end_points = resnet_v1.resnet_v1_50(images, is_training=is_training, scope='resnet_v1_50')
 
     with tf.variable_scope('feature_fusion', values=[end_points.values]):
         batch_norm_params = {
-        'decay': 0.997,
-        'epsilon': 1e-5,
-        'scale': True,
-        'is_training': is_training
+        'decay': 0.997, # 衰减系数
+        'epsilon': 1e-5, # 在x的方差中添加了一个小的浮点数，避免被零除
+        'scale': True, # 如果为True，则乘以gamma。如果为False，gamma则不使用。当下一层是线性的时（例如nn.relu），由于缩放可以由下一层完成，所以可以禁用该层。
+        'is_training': is_training # bool值，用于指定操作是用于训练还是推断
         }
         with slim.arg_scope([slim.conv2d],
-                            activation_fn=tf.nn.relu,
-                            normalizer_fn=slim.batch_norm,
-                            normalizer_params=batch_norm_params,
-                            weights_regularizer=slim.l2_regularizer(weight_decay)):
+                            activation_fn=tf.nn.relu, # 激活函数
+                            normalizer_fn=slim.batch_norm, # 正则化函数
+                            normalizer_params=batch_norm_params, # slim.batch_norm中的参数，以字典形式表示
+                            weights_regularizer=slim.l2_regularizer(weight_decay)): # 权重的正则化器
+            # 取2，3，4，5次池化后的输出
             f = [end_points['pool5'], end_points['pool4'],
                  end_points['pool3'], end_points['pool2']]
             for i in range(4):
@@ -59,11 +64,14 @@ def model(images, weight_decay=1e-5, is_training=True):
             h = [None, None, None, None]
             num_outputs = [None, 128, 64, 32]
             for i in range(4):
+                # 由网络结构图可知h0=f0
                 if i == 0:
                     h[i] = f[i]
+                # 对其他的hi有，hi = conv (concat (fi, unpool (hi-1) ) )
                 else:
                     c1_1 = slim.conv2d(tf.concat([g[i-1], f[i]], axis=-1), num_outputs[i], 1)
                     h[i] = slim.conv2d(c1_1, num_outputs[i], 3)
+                # 由网络结构可知，对于h0，h1，h2都要先经过unpool在与fi进行叠加
                 if i <= 2:
                     g[i] = unpool(h[i])
                 else:
@@ -73,10 +81,16 @@ def model(images, weight_decay=1e-5, is_training=True):
             # here we use a slightly different way for regression part,
             # we first use a sigmoid to limit the regression range, and also
             # this is do with the angle map
+            # score map
             F_score = slim.conv2d(g[3], 1, 1, activation_fn=tf.nn.sigmoid, normalizer_fn=None)
+            # 参数注释：前三个参数依次为网络的输入，输出的通道，卷积核大小，activation_fn : 激活函数，默认是nn.relu，normalizer_fn : 正则化函数，默认为None
+
             # 4 channel of axis aligned bbox and 1 channel rotation angle
+            # text boxes
             geo_map = slim.conv2d(g[3], 4, 1, activation_fn=tf.nn.sigmoid, normalizer_fn=None) * FLAGS.text_scale
+            # text rotation
             angle_map = (slim.conv2d(g[3], 1, 1, activation_fn=tf.nn.sigmoid, normalizer_fn=None) - 0.5) * np.pi/2 # angle is between [-45, 45]
+            # 这里将坐标与角度信息合并输出
             F_geometry = tf.concat([geo_map, angle_map], axis=-1)
 
     return F_score, F_geometry
@@ -117,6 +131,7 @@ def loss(y_true_cls, y_pred_cls,
     :param training_mask: mask used in training, to ignore some text annotated by ###
     :return:
     '''
+    # score交叉熵
     classification_loss = dice_coefficient(y_true_cls, y_pred_cls, training_mask)
     # scale classification loss to match the iou loss part
     classification_loss *= 0.01
@@ -138,10 +153,13 @@ def loss(y_true_cls, y_pred_cls,
     # -log(IoU)
     L_AABB = -tf.log((area_intersect + 1.0)/(area_union + 1.0))
 
+    # 角度误差函数
     L_theta = 1 - tf.cos(theta_pred - theta_gt)
     tf.summary.scalar('geometry_AABB', tf.reduce_mean(L_AABB * y_true_cls * training_mask))
     tf.summary.scalar('geometry_theta', tf.reduce_mean(L_theta * y_true_cls * training_mask))
 
+    # 加权和得到geo loss
     L_g = L_AABB + 20 * L_theta
 
+    # 考虑training_mask，背景像素不参与误差计算
     return tf.reduce_mean(L_g * y_true_cls * training_mask) + classification_loss
