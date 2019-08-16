@@ -12,9 +12,9 @@ FLAGS = tf.app.flags.FLAGS
 
 
 def unpool(inputs):
-    return tf.image.resize_bilinear(inputs, size=[tf.shape(inputs)[1]*2,  tf.shape(inputs)[2]*2])
+    return tf.image.resize_bilinear(inputs, size=[tf.shape(inputs)[1]*2,  tf.shape(inputs)[2]*2])# 使用双线性插值调整images为size
 
-
+# 定义一个图像做标准化的函数
 def mean_image_subtraction(images, means=[123.68, 116.78, 103.94]):
     '''
     image normalization
@@ -22,13 +22,15 @@ def mean_image_subtraction(images, means=[123.68, 116.78, 103.94]):
     :param means:
     :return:
     '''
+    # x.get_shape()，只有tensor才可以使用这种方法，返回的是一个元组，需要通过as_list()的操作转换成list
     num_channels = images.get_shape().as_list()[-1]
     if len(means) != num_channels:
       raise ValueError('len(means) must match the number of channels')
+    # 函数用途简单说就是把一个张量划分成几个子张量,value：准备切分的张量,num_or_size_splits:准备切成几份,axis:准备在第几个维度上进行切割
     channels = tf.split(axis=3, num_or_size_splits=num_channels, value=images)
     for i in range(num_channels):
         channels[i] -= means[i]
-    return tf.concat(axis=3, values=channels)
+    return tf.concat(axis=3, values=channels)# 把多个array沿着第4个维度接在一起
 
 
 def model(images, weight_decay=1e-5, is_training=True):
@@ -37,9 +39,7 @@ def model(images, weight_decay=1e-5, is_training=True):
     '''
     # 对RGB像素做标准化，即减去均值
     images = mean_image_subtraction(images)
-
-    # 先将图片经过resnet_v1网络
-    # 得到resnet_v1的全部stage的输出，存在end_points里面
+    # 先将图片经过resnet_v1网络，得到resnet_v1的全部stage的输出，存在end_points里面
     with slim.arg_scope(resnet_v1.resnet_arg_scope(weight_decay=weight_decay)):
         logits, end_points = resnet_v1.resnet_v1_50(images, is_training=is_training, scope='resnet_v1_50')
 

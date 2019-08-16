@@ -43,6 +43,9 @@ import tensorflow as tf
 slim = tf.contrib.slim
 
 
+# namedtuple是一个函数，它用来创建一个自定义的tuple对象，并且规定了tuple元素的个数，
+# 并可以用属性而不是索引来引用tuple的某个元素
+# 相当于创建了一个Block类，有scope，unit_fn，args属性
 class Block(collections.namedtuple('Block', ['scope', 'unit_fn', 'args'])):
     """A named tuple describing a ResNet block.
 
@@ -55,7 +58,7 @@ class Block(collections.namedtuple('Block', ['scope', 'unit_fn', 'args'])):
         block to serve as argument to unit_fn.
     """
 
-
+# 下采样
 def subsample(inputs, factor, scope=None):
     """Subsamples the input along the spatial dimensions.
 
@@ -72,7 +75,7 @@ def subsample(inputs, factor, scope=None):
         return inputs
     else:
         return slim.max_pool2d(inputs, [1, 1], stride=factor, scope=scope)
-
+# 前两个参数分别为网络输入，输出的神经元数量，scope:你绘制的网络结构图中它属于那个范围内
 
 def conv2d_same(inputs, num_outputs, kernel_size, stride, rate=1, scope=None):
     """Strided 2-D convolution with 'SAME' padding.
@@ -108,6 +111,13 @@ def conv2d_same(inputs, num_outputs, kernel_size, stride, rate=1, scope=None):
       output: A 4-D tensor of size [batch, height_out, width_out, channels] with
         the convolution output.
     """
+    # inputs指需要做卷积的输入图像
+    # num_outputs指定卷积核的个数（就是filter的个数）
+    # kernel_size用于指定卷积核的维度（卷积核的宽度，卷积核的高度）
+    # stride为卷积时在图像每一维的步长
+    # padding为padding的方式选择，VALID或者SAME
+    # rate这个参数不是太理解，而且tf.nn.conv2d中也没有，对于使用atrous convolution的膨胀率（不是太懂这个atrous convolution）
+    # scope:共享变量所指的variable_scope
     if stride == 1:
         return slim.conv2d(inputs, num_outputs, kernel_size, stride=1, rate=rate,
                            padding='SAME', scope=scope)

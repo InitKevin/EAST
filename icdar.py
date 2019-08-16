@@ -15,6 +15,8 @@ import tensorflow as tf
 
 from data_util import GeneratorEnqueuer
 
+# tf中定义了 tf.app.flags.FLAGS ，用于接受从终端传入的命令行参数，
+# “DEFINE_xxx”函数带3个参数，分别是变量名称，默认值，用法描述
 tf.app.flags.DEFINE_string('training_data_path', '/data/ocr/icdar2015/',
                            'training dataset to use')
 tf.app.flags.DEFINE_integer('max_image_large_side', 1280,
@@ -29,7 +31,6 @@ tf.app.flags.DEFINE_float('min_crop_side_ratio', 0.1,
                           'min length of min(H, W')
 tf.app.flags.DEFINE_string('geometry', 'RBOX',
                            'which geometry to generate, RBOX or QUAD')
-
 
 FLAGS = tf.app.flags.FLAGS
 

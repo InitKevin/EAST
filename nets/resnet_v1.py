@@ -65,6 +65,7 @@ resnet_arg_scope = resnet_utils.resnet_arg_scope
 
 
 @slim.add_arg_scope
+# 深度瓶颈结构的实现：对于每个残差函数F，我们使用3层来描述，而不是2层。这三层分别是1×1、3×3，和1×1的卷积层，其中1×1层负责先减少后增加（恢复）尺寸的，使3×3层具有较小的输入/输出尺寸瓶颈。
 def bottleneck(inputs, depth, depth_bottleneck, stride, rate=1,
                outputs_collections=None, scope=None):
     """Bottleneck residual unit variant with BN after convolutions.
