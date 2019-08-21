@@ -43,6 +43,8 @@ def model(images, weight_decay=1e-5, is_training=True):
     with slim.arg_scope(resnet_v1.resnet_arg_scope(weight_decay=weight_decay)):
         logits, end_points = resnet_v1.resnet_v1_50(images, is_training=is_training, scope='resnet_v1_50')
 
+    print("网络定义完毕，返回的end_points:",end_points)
+
     with tf.variable_scope('feature_fusion', values=[end_points.values]):
         batch_norm_params = {
         'decay': 0.997, # 衰减系数
@@ -82,6 +84,8 @@ def model(images, weight_decay=1e-5, is_training=True):
             # we first use a sigmoid to limit the regression range, and also
             # this is do with the angle map
             # score map
+            # g[3]就是最后得到的upool的合并完的feature map了，然后做了一个1x1的卷积，channel是1，得到了啥？
+            # 得到了一张1通道的图，跟原图大小一样，每个"像素"的值都是一个概率，是一个"概率"的图
             F_score = slim.conv2d(g[3], 1, 1, activation_fn=tf.nn.sigmoid, normalizer_fn=None)
             # 参数注释：前三个参数依次为网络的输入，输出的通道，卷积核大小，activation_fn : 激活函数，默认是nn.relu，normalizer_fn : 正则化函数，默认为None
 
@@ -92,6 +96,8 @@ def model(images, weight_decay=1e-5, is_training=True):
             angle_map = (slim.conv2d(g[3], 1, 1, activation_fn=tf.nn.sigmoid, normalizer_fn=None) - 0.5) * np.pi/2 # angle is between [-45, 45]
             # 这里将坐标与角度信息合并输出
             F_geometry = tf.concat([geo_map, angle_map], axis=-1)
+
+            # 乖乖：都是通过卷积得到的啊，最后得到了啥：F_score（1张）、geo_map（4张）、angle_map（1张），恩，张就是指图，跟原图带下一样的伪图
 
     return F_score, F_geometry
 

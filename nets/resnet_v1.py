@@ -196,8 +196,10 @@ def resnet_v1(inputs,
 
                     net = slim.utils.collect_named_outputs(end_points_collection, 'pool2', net)
 
+                # 这个是核心，堆叠出reset50的结构
                 net = resnet_utils.stack_blocks_dense(net, blocks, output_stride)
 
+                # 然后收集这个结构中的隔层，这个convert_collection_to_dict应该返回对应层和名字的一个字典
                 end_points = slim.utils.convert_collection_to_dict(end_points_collection)
 
                 # end_points['pool2'] = end_points['resnet_v1_50/pool1/MaxPool:0']

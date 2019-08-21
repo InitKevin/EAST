@@ -27,11 +27,11 @@ gpus = list(range(len(FLAGS.gpu_list.split(','))))
 def tower_loss(images, score_maps, geo_maps, training_masks, reuse_variables=None):
     # Build inference graph
     with tf.variable_scope(tf.get_variable_scope(), reuse=reuse_variables):
+        # 模型定义！！！，f_score是和原图大小一样的是否是前景的概率图， f_geometry是5张图，4张是上下左右值，1张是旋转角度值
         f_score, f_geometry = model.model(images, is_training=True)
 
-    model_loss = model.loss(score_maps, f_score,
-                            geo_maps, f_geometry,
-                            training_masks)
+    model_loss = model.loss(score_maps, f_score,geo_maps, f_geometry,training_masks)
+
     total_loss = tf.add_n([model_loss] + tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
 
     # add summary
@@ -107,6 +107,7 @@ def main(argv=None):
                 isms = input_score_maps_split[i]
                 igms = input_geo_maps_split[i]
                 itms = input_training_masks_split[i]
+                # 模型定义！！！
                 total_loss, model_loss = tower_loss(iis, isms, igms, itms, reuse_variables)
                 batch_norm_updates_op = tf.group(*tf.get_collection(tf.GraphKeys.UPDATE_OPS, scope))
                 reuse_variables = True
