@@ -1,5 +1,6 @@
 python train.py \
     --debug=True \
+    --gpu_list=0 \
     --input_size=512 \
     --batch_size_per_gpu=1 \
     --checkpoint_path=./model/checkpoint/ \
