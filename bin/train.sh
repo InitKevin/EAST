@@ -3,6 +3,9 @@ if [ "$1" == "debug" ] || [ "$1" == "console" ]; then
     python train.py \
     --debug=True \
     --gpu_list=0 \
+    --max_steps=3 \
+    --batch_size_per_gpu=1 \
+    --num_readers=1 \
     --input_size=512 \
     --batch_size_per_gpu=1 \
     --save_checkpoint_steps=1 \
@@ -23,6 +26,9 @@ echo "###### 生产模式 ######"
     python train.py \
     --debug=False \
     --gpu_list=0 \
+    --max_steps=200000 \
+    --batch_size_per_gpu=32 \
+    --num_readers=4 \
     --input_size=512 \
     --batch_size_per_gpu=1 \
     --save_checkpoint_steps=1000 \
