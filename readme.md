@@ -47,10 +47,19 @@
 * 如何判断最后的预测效果，对应的评价标准是什么？可以参考CTPN的评价标准对比一下。
 * 我们的标准，如何顺利的被转成east需要的样本格式？我们那340万张样本图片
 
+# 开发日志
 
-原作者的日志，仅作保留
+### 8.26
 
-# EAST: An Efficient and Accurate Scene Text Detector
+- 修改了加载我们的样本格式，目录结构为 data/train/images和data/train/labels
+- 修改了train.sh中各类参数定义，完善了脚本
+- 阅读了代码，增加了许多注释，方便理解代码
+- 尝试在GPU上跑，笔记本上貌似跑不动，直接放弃，在GPU上跑，又出现读样本进程成为僵尸的问题
+- train.sh上增加了调试和生产模式，以及停止功能
+
+# 原作者的日志，仅作保留
+
+## EAST: An Efficient and Accurate Scene Text Detector
 
 ### Introduction
 This is a tensorflow re-implementation of [EAST: An Efficient and Accurate Scene Text Detector](https://arxiv.org/abs/1704.03155v2).
