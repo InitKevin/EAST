@@ -114,19 +114,18 @@ def check_and_validate_polys(polys, tags, xxx_todo_changeme):
 
     validated_polys = []
     validated_tags = []
-    print("begin to process poly & tag")
     for poly, tag in zip(polys, tags):
         p_area = polygon_area(poly)
         if abs(p_area) < 1:# 如果面积小于1
             # print poly
-            print('invalid poly')
+            print('文字区域面积小于1')
             continue
         if p_area > 0:
             print('poly in wrong direction')
             poly = poly[(0, 3, 2, 1), :]
         validated_polys.append(poly)
         validated_tags.append(tag)
-    print("finish polys process:%d,%d" % (len(validated_polys),len(validated_tags)))
+    # print("finish polys process:%d,%d" % (len(validated_polys),len(validated_tags)))
     return np.array(validated_polys), np.array(validated_tags)
 
 # 这个函数真心没看懂，远航君给讲了一下，豁然开朗
@@ -173,7 +172,7 @@ def crop_area(im, polys, tags, crop_background=False, max_tries=50):
     w_axis = np.where(w_array == 0)[0]
     if len(h_axis) == 0 or len(w_axis) == 0:
         return im, polys, tags
-    print("maxretry:",max_tries)
+
     for i in range(max_tries):
 
         # xx是随机找到2个x的坐标，x坐标是从w_array里面找到的为0值的数组下标，就是远航君说的随机找2个值为0点的意思，我有个问题，如果2个值挨着怎么办？都是一个区间里
@@ -221,7 +220,7 @@ def crop_area(im, polys, tags, crop_background=False, max_tries=50):
         # 别忘了，要调整一下切出来的子图的坐标
         polys[:, :, 0] -= xmin
         polys[:, :, 1] -= ymin
-        print("crop return:", im.shape, polys.shape, tags.shape)
+        # print("crop return:", im.shape, polys.shape, tags.shape)
         return im, polys, tags
 
     return im, polys, tags
@@ -879,7 +878,6 @@ def get_batch(num_workers, **kwargs):
             while enqueuer.is_running():
                 if not enqueuer.queue.empty():
                     generator_output = enqueuer.queue.get()
-                    print ("get a generator output:" , generator_output)
                     break
                 else:
                     #print("queue is empty, which cause we are wating....")

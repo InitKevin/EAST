@@ -53,12 +53,9 @@ class GeneratorEnqueuer():
             while not self._stop_event.is_set():
                 try:
                     if self._use_multiprocessing or self.queue.qsize() < max_queue_size:
-                        print("try to generate some data")
                         generator_output = next(self._generator)
-                        print("i collect a batch data, trying to put them into the queue:",generator_output)
                         self.queue.put(generator_output)
                     else:
-                        print("the queue was full...")
                         time.sleep(self.wait_time)
                 except Exception:
                     self._stop_event.set()

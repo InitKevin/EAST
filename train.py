@@ -157,7 +157,7 @@ def main(argv=None):
         start = time.time()
         for step in range(FLAGS.max_steps):
             data = next(data_generator)
-            print("[训练] 加载了一张图片:" , data.shape)
+            print("[训练] 加载了一张图片，准备训练...")
             ml, tl, _ = sess.run([model_loss, total_loss, train_op], feed_dict={input_images: data[0],
                                                                                 input_score_maps: data[2],
                                                                                 input_geo_maps: data[3],
