@@ -37,7 +37,7 @@ echo "###### 生产模式 ######"
     --gpu_list=0 \
     --max_steps=200000 \
     --batch_size_per_gpu=32 \
-    --num_readers=4 \
+    --num_readers=3 \
     --input_size=512 \
     --batch_size_per_gpu=1 \
     --save_checkpoint_steps=1000 \
