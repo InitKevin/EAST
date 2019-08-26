@@ -44,6 +44,12 @@ def get_images():
         patten = os.path.join(image_dir, '*.{}'.format(ext))
         print("检索模式：",patten)
         files.extend(glob.glob(patten))
+
+    if FLAGS.debug:
+        print("调试模式，仅加载10张图片")
+        len = min(len(files),10)
+        files = files[:len]
+
     print("加载完毕%d图像" % len(files))
     return files
 
