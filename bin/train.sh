@@ -1,6 +1,14 @@
+if [ "$1" = "stop" ]; then
+    echo "!!!停止了训练!!!"
+    ps aux|grep python|grep name=east|awk '{print $2}'|xargs kill -9
+    exit
+fi
+
+
 if [ "$1" == "debug" ] || [ "$1" == "console" ]; then
     echo "###### 调试模式 ######"
     python train.py \
+    --name=east \
     --debug=True \
     --gpu_list=0 \
     --max_steps=3 \
@@ -24,6 +32,7 @@ Date=$(date +%Y%m%d%H%M)
 echo "###### 生产模式 ######"
     nohup \
     python train.py \
+    --name=east \
     --debug=False \
     --gpu_list=0 \
     --max_steps=200000 \
