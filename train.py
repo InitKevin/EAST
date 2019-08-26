@@ -137,6 +137,7 @@ def main(argv=None):
         # pretrained_model_path实际上是resnet50的pretrain模型
         variable_restore_op = slim.assign_from_checkpoint_fn(FLAGS.pretrained_model_path, slim.get_trainable_variables(),
                                                              ignore_missing_vars=True)
+        print("成功加载resnet预训练模型：",FLAGS.pretrained_model_path)
     with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
         if FLAGS.restore:
             print('continue training from previous checkpoint')
@@ -147,6 +148,7 @@ def main(argv=None):
             sess.run(init)
             if FLAGS.pretrained_model_path is not None:
                 variable_restore_op(sess)
+            print("从头开始训练...")
 
         data_generator = icdar.get_batch(num_workers=FLAGS.num_readers,
                                          input_size=FLAGS.input_size,
@@ -155,7 +157,7 @@ def main(argv=None):
         start = time.time()
         for step in range(FLAGS.max_steps):
             data = next(data_generator)
-            print("generator next to get a new data:" , data)
+            print("[训练] 加载了一张图片:" , data.shape)
             ml, tl, _ = sess.run([model_loss, total_loss, train_op], feed_dict={input_images: data[0],
                                                                                 input_score_maps: data[2],
                                                                                 input_geo_maps: data[3],
@@ -172,6 +174,7 @@ def main(argv=None):
                     step, ml, tl, avg_time_per_step, avg_examples_per_second))
 
             if step % FLAGS.save_checkpoint_steps == 0:
+                print("保存checkpoint:",FLAGS.checkpoint_path + 'model.ckpt')
                 saver.save(sess, FLAGS.checkpoint_path + 'model.ckpt', global_step=global_step)
 
             if step % FLAGS.save_summary_steps == 0:
@@ -179,7 +182,9 @@ def main(argv=None):
                                                                                              input_score_maps: data[2],
                                                                                              input_geo_maps: data[3],
                                                                                              input_training_masks: data[4]})
+                print("写入summary...")
                 summary_writer.add_summary(summary_str, global_step=step)
+            print("[训练] 结束batch:",step)
 
 if __name__ == '__main__':
     enable_pystack()
