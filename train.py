@@ -133,11 +133,13 @@ def main(argv=None):
     init = tf.global_variables_initializer()
 
     if FLAGS.pretrained_model_path is not None:
+        # pretrained_model_path实际上是resnet50的pretrain模型
         variable_restore_op = slim.assign_from_checkpoint_fn(FLAGS.pretrained_model_path, slim.get_trainable_variables(),
                                                              ignore_missing_vars=True)
     with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
         if FLAGS.restore:
             print('continue training from previous checkpoint')
+            # 这个是之前的checkpoint模型，可以半截接着训练
             ckpt = tf.train.latest_checkpoint(FLAGS.checkpoint_path)
             saver.restore(sess, ckpt)
         else:

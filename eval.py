@@ -35,7 +35,7 @@ def get_images():
     print('Find {} images'.format(len(files)))
     return files
 
-
+# 调整宽高为32的倍数，宽高不能大于2400
 def resize_image(im, max_side_len=2400):
     '''
     resize image to a size multiple of 32 which is required by the network
@@ -50,7 +50,9 @@ def resize_image(im, max_side_len=2400):
 
     # limit the max side
     if max(resize_h, resize_w) > max_side_len:
-        ratio = float(max_side_len) / resize_h if resize_h > resize_w else float(max_side_len) / resize_w
+        ratio = float(max_side_len) / resize_h \
+            if resize_h > resize_w \
+            else float(max_side_len) / resize_w
     else:
         ratio = 1.
     resize_h = int(resize_h * ratio)
@@ -81,14 +83,20 @@ def detect(score_map, geo_map, timer, score_map_thresh=0.8, box_thresh=0.1, nms_
     '''
     if len(score_map.shape) == 4:
         score_map = score_map[0, :, :, 0]
-        geo_map = geo_map[0, :, :, ]
-    # filter the score map
+        geo_map = geo_map[0, :, :, ] # (h, w, 5)
+    # filter the score map，返回的是xy_text二维坐标数据
     xy_text = np.argwhere(score_map > score_map_thresh)
-    # sort the text boxes via the y axis
-    xy_text = xy_text[np.argsort(xy_text[:, 0])]
+    # sort the text boxes via the y axis，argsort函数返回的是数组值从小到大的索引值
+    xy_text = xy_text[np.argsort(xy_text[:, 0])] #返回还是二维坐标数据组，只不过是按照x排序了
     # restore
     start = time.time()
-    text_box_restored = restore_rectangle(xy_text[:, ::-1]*4, geo_map[xy_text[:, 0], xy_text[:, 1], :]) # N*4*2
+    # ::-1 把数组倒过来
+    text_box_restored = restore_rectangle(xy_text[:, ::-1]*4,#为何最表要乘以4？
+                                          geo_map[           #把这些点对应的值拿出来，geo_map:(h, w, 5)
+                                            xy_text[:, 0],
+                                            xy_text[:, 1],
+                                            :
+                                          ]) # N*4*2
     print('{} text boxes before nms'.format(text_box_restored.shape[0]))
     boxes = np.zeros((text_box_restored.shape[0], 9), dtype=np.float32)
     boxes[:, :8] = text_box_restored.reshape((-1, 8))
@@ -96,6 +104,8 @@ def detect(score_map, geo_map, timer, score_map_thresh=0.8, box_thresh=0.1, nms_
     timer['restore'] = time.time() - start
     # nms part
     start = time.time()
+
+    # 终于开始做激动人心的local aware NMS了！
     # boxes = nms_locality.nms_locality(boxes.astype(np.float64), nms_thres)
     boxes = lanms.merge_quadrangle_n9(boxes.astype('float32'), nms_thres)
     timer['nms'] = time.time() - start
@@ -103,7 +113,8 @@ def detect(score_map, geo_map, timer, score_map_thresh=0.8, box_thresh=0.1, nms_
     if boxes.shape[0] == 0:
         return None, timer
 
-    # here we filter some low score boxes by the average score map, this is different from the orginal paper
+    # here we filter some low score boxes by the average score map,
+    # this is different from the orginal paper
     for i, box in enumerate(boxes):
         mask = np.zeros_like(score_map, dtype=np.uint8)
         cv2.fillPoly(mask, box[:8].reshape((-1, 4, 2)).astype(np.int32) // 4, 1)
@@ -152,6 +163,7 @@ def main(argv=None):
             for im_fn in im_fn_list:
                 im = cv2.imread(im_fn)[:, :, ::-1]
                 start_time = time.time()
+                # 调整图像为32的倍数，但是基本上保持原图大小
                 im_resized, (ratio_h, ratio_w) = resize_image(im)
 
                 timer = {'net': 0, 'restore': 0, 'nms': 0}
