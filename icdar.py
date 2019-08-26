@@ -47,8 +47,8 @@ def get_images():
 
     if FLAGS.debug:
         print("调试模式，仅加载10张图片")
-        len = min(len(files),10)
-        files = files[:len]
+        _len = min(len(files),10)
+        files = files[:_len]
 
     print("加载完毕%d图像" % len(files))
     return files
