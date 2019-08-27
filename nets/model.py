@@ -58,8 +58,10 @@ def model(images, weight_decay=1e-5, is_training=True):
                             normalizer_params=batch_norm_params, # slim.batch_norm中的参数，以字典形式表示
                             weights_regularizer=slim.l2_regularizer(weight_decay)): # 权重的正则化器
             # 取2，3，4，5次池化后的输出
-            f = [end_points['pool5'], end_points['pool4'],
-                 end_points['pool3'], end_points['pool2']]
+            f = [end_points['pool5'],
+                 end_points['pool4'],
+                 end_points['pool3'],
+                 end_points['pool2']]
             for i in range(4):
                 print('Shape of f_{} {}'.format(i, f[i].shape))
             g = [None, None, None, None]
@@ -86,7 +88,9 @@ def model(images, weight_decay=1e-5, is_training=True):
             # score map
             # g[3]就是最后得到的upool的合并完的feature map了，然后做了一个1x1的卷积，channel是1，得到了啥？
             # 得到了一张1通道的图，跟原图大小一样，每个"像素"的值都是一个概率，是一个"概率"的图
-            F_score = slim.conv2d(g[3], 1, 1, activation_fn=tf.nn.sigmoid, normalizer_fn=None)
+            #
+            # slim.conv2d(inputs,num_outputs(output channel),kernel_size,stride=1,padding='SAME',
+            F_score = slim.conv2d(g[3],1,1, activation_fn=tf.nn.sigmoid, normalizer_fn=None)
             # 参数注释：前三个参数依次为网络的输入，输出的通道，卷积核大小，activation_fn : 激活函数，默认是nn.relu，normalizer_fn : 正则化函数，默认为None
 
             # 4 channel of axis aligned bbox and 1 channel rotation angle
@@ -99,7 +103,7 @@ def model(images, weight_decay=1e-5, is_training=True):
 
             # 乖乖：都是通过卷积得到的啊，最后得到了啥：F_score（1张）、geo_map（4张）、angle_map（1张），恩，张就是指图，跟原图带下一样的伪图
 
-    return F_score, F_geometry
+    return F_score, F_geometry #1+5channel的图像
 
 
 def dice_coefficient(y_true_cls, y_pred_cls,

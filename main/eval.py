@@ -1,11 +1,9 @@
 import cv2
 import time
-import math
 import os
 import numpy as np
 import tensorflow as tf
 
-import locality_aware_nms as nms_locality
 import lanms
 
 tf.app.flags.DEFINE_string('test_data_path', '/tmp/ch4_test_images/images/', '')
@@ -15,7 +13,7 @@ tf.app.flags.DEFINE_string('output_dir', '/tmp/ch4_test_images/images/', '')
 tf.app.flags.DEFINE_bool('no_write_images', False, 'do not write images')
 
 import model
-from icdar import restore_rectangle
+from utils.icdar import restore_rectangle
 
 FLAGS = tf.app.flags.FLAGS
 

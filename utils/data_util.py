@@ -48,7 +48,7 @@ class GeneratorEnqueuer():
         import os
         def data_generator_task():
             print("the process was created,pid:",os.getpid())
-            from debug_tool import enable_pystack
+            from utils.debug_tool import enable_pystack
             enable_pystack()
             while not self._stop_event.is_set():
                 try:

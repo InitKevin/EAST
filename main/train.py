@@ -2,10 +2,10 @@ import time
 import numpy as np
 import tensorflow as tf
 from tensorflow.contrib import slim
-from debug_tool import enable_pystack
+from utils.debug_tool import enable_pystack
 tf.app.flags.DEFINE_string('name', 'east', '')
 tf.app.flags.DEFINE_integer('input_size', 512, '')
-tf.app.flags.DEFINE_integer('batch_size_per_gpu', 32, '')
+tf.app.flags.DEFINE_integer('batch_size', 32, '')
 tf.app.flags.DEFINE_integer('num_readers', 16, '')
 tf.app.flags.DEFINE_float('learning_rate', 0.0001, '')
 tf.app.flags.DEFINE_integer('max_steps', 100000, '')
@@ -14,17 +14,21 @@ tf.app.flags.DEFINE_string('gpu_list', '0', '')
 tf.app.flags.DEFINE_boolean('debug',False,'')
 tf.app.flags.DEFINE_string('checkpoint_path', '/tmp/east_resnet_v1_50_rbox/', '')
 tf.app.flags.DEFINE_boolean('restore', False, 'whether to resotre from checkpoint')
-tf.app.flags.DEFINE_integer('save_checkpoint_steps', 1000, '')
+tf.app.flags.DEFINE_integer('validate_steps', 1000, '')
+tf.app.flags.DEFINE_integer('validate_batch_num', 30, '') # 一共检查多少个批次
 tf.app.flags.DEFINE_integer('save_summary_steps', 100, '')
+tf.app.flags.DEFINE_integer('early_stop', 100, '')
 tf.app.flags.DEFINE_string('pretrained_model_path', None, '')
+tf.app.flags.DEFINE_string('training_data_path', '', '')
+tf.app.flags.DEFINE_string('validate_data_path', '', '')
 
-import model
-import icdar
+from nets import model
+from utils import icdar
+from utils.early_stop import EarlyStop
 
 FLAGS = tf.app.flags.FLAGS
 
 gpus = list(range(len(FLAGS.gpu_list.split(','))))
-
 
 def tower_loss(images, score_maps, geo_maps, training_masks, reuse_variables=None):
     # Build inference graph
@@ -47,7 +51,7 @@ def tower_loss(images, score_maps, geo_maps, training_masks, reuse_variables=Non
         tf.summary.scalar('model_loss', model_loss)
         tf.summary.scalar('total_loss', total_loss)
 
-    return total_loss, model_loss
+    return total_loss, model_loss,f_score, f_geometry
 
 
 def average_gradients(tower_grads):
@@ -88,11 +92,11 @@ def main(argv=None):
 
     global_step = tf.get_variable('global_step', [], initializer=tf.constant_initializer(0), trainable=False)
     learning_rate = tf.train.exponential_decay(FLAGS.learning_rate, global_step, decay_steps=10000, decay_rate=0.94, staircase=True)
+
     # add summary
     tf.summary.scalar('learning_rate', learning_rate)
     opt = tf.train.AdamOptimizer(learning_rate)
     # opt = tf.train.MomentumOptimizer(learning_rate, 0.9)
-
 
     # split
     input_images_split = tf.split(input_images, len(gpus))
@@ -110,7 +114,7 @@ def main(argv=None):
                 igms = input_geo_maps_split[i]
                 itms = input_training_masks_split[i]
                 # 模型定义！！！
-                total_loss, model_loss = tower_loss(iis, isms, igms, itms, reuse_variables)
+                total_loss, model_loss,f_score, f_geometry  = tower_loss(iis, isms, igms, itms, reuse_variables)
                 batch_norm_updates_op = tf.group(*tf.get_collection(tf.GraphKeys.UPDATE_OPS, scope))
                 reuse_variables = True
 
@@ -139,6 +143,9 @@ def main(argv=None):
         variable_restore_op = slim.assign_from_checkpoint_fn(FLAGS.pretrained_model_path, slim.get_trainable_variables(),
                                                              ignore_missing_vars=True)
         print("成功加载resnet预训练模型：",FLAGS.pretrained_model_path)
+
+    early_stop = EarlyStop(FLAGS.early_stop)
+
     with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
         if FLAGS.restore:
             print('continue training from previous checkpoint')
@@ -153,39 +160,90 @@ def main(argv=None):
 
         data_generator = icdar.get_batch(num_workers=FLAGS.num_readers,
                                          input_size=FLAGS.input_size,
-                                         batch_size=FLAGS.batch_size_per_gpu )
+                                         batch_size=FLAGS.batch_size,
+                                         data_dir=FLAGS.training_data_path,
+                                         name="训练")
 
+        validate_data_generator = icdar.get_batch(num_workers=FLAGS.num_readers,
+                                         input_size=FLAGS.input_size,
+                                         batch_size=FLAGS.batch_size,
+                                         data_dir=FLAGS.training_data_path,
+                                         name="验证")
+
+
+        # 开始训练啦！
         start = time.time()
         for step in range(FLAGS.max_steps):
+
+            # 取出一个batch的数据
             data = next(data_generator)
             print("[训练] 加载了一张图片，准备训练...")
-            ml, tl, _ = sess.run([model_loss, total_loss, train_op], feed_dict={input_images: data[0],
-                                                                                input_score_maps: data[2],
-                                                                                input_geo_maps: data[3],
-                                                                                input_training_masks: data[4]})
+
+            # 训练他们
+            ml, tl, _ = sess.run([model_loss,
+                                  total_loss,
+                                  train_op],
+                                 feed_dict={
+                                    input_images: data[0],
+                                    input_score_maps: data[2],
+                                    input_geo_maps: data[3],
+                                    input_training_masks: data[4]})
             if np.isnan(tl):
                 print('Loss diverged, stop training')
                 break
 
             if step % 10 == 0:
                 avg_time_per_step = (time.time() - start)/10
-                avg_examples_per_second = (10 * FLAGS.batch_size_per_gpu * len(gpus))/(time.time() - start)
+                avg_examples_per_second = (10 * FLAGS.batch_size * len(gpus))/(time.time() - start)
                 start = time.time()
                 print('Step {:06d}, model loss {:.4f}, total loss {:.4f}, {:.2f} seconds/step, {:.2f} examples/second'.format(
                     step, ml, tl, avg_time_per_step, avg_examples_per_second))
 
-            if step % FLAGS.save_checkpoint_steps == 0:
-                print("保存checkpoint:",FLAGS.checkpoint_path + 'model.ckpt')
-                saver.save(sess, FLAGS.checkpoint_path + 'model.ckpt', global_step=global_step)
+            # if step % FLAGS.validate_steps == 0:
+            #     print("保存checkpoint:",FLAGS.checkpoint_path + 'model.ckpt')
+            #     saver.save(sess, FLAGS.checkpoint_path + 'model.ckpt', global_step=global_step)
+            # 默认是1000步，validate一下
+            if step % FLAGS.validate_steps == 0:
+                _accuracy = validate(f_score, f_geometry)
+                if is_need_early_stop(early_stop, _accuracy, saver, sess, epoch): break  # 用负的编辑距离
 
+            # 默认是100
             if step % FLAGS.save_summary_steps == 0:
-                _, tl, summary_str = sess.run([train_op, total_loss, summary_op], feed_dict={input_images: data[0],
-                                                                                             input_score_maps: data[2],
-                                                                                             input_geo_maps: data[3],
-                                                                                             input_training_masks: data[4]})
+                _, tl, summary_str = sess.run([train_op,
+                                               total_loss,
+                                               summary_op],
+                                              feed_dict={
+                                                 input_images: data[0],
+                                                 input_score_maps: data[2],
+                                                 input_geo_maps: data[3],
+                                                 input_training_masks: data[4]})
                 print("写入summary...")
                 summary_writer.add_summary(summary_str, global_step=step)
             print("[训练] 结束batch:",step)
+
+
+def validate(f_score, f_geometry,input_images):
+    pass
+
+def is_need_early_stop(early_stop,value,saver,sess,step):
+    decision = early_stop.decide(value)
+
+    if decision == EarlyStop.CONTINUE:
+        logger.info("新Value值比最好的要小，继续训练...")
+        return False
+
+    if decision == EarlyStop.BEST:
+        logger.info("新Value值[%f]大于过去最好的Value值，早停计数器重置，并保存模型", value)
+        save_model(saver, sess, step)
+        return False
+
+    if decision == EarlyStop.STOP:
+        logger.warning("超过早停最大次数，也尝试了多次学习率Decay，无法在提高：第%d次，训练提前结束", step)
+        return True
+
+    logger.error("无法识别的EarlyStop结果：%r",decision)
+    return True
+
 
 if __name__ == '__main__':
     enable_pystack()

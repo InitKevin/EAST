@@ -5,15 +5,13 @@ import cv2
 import time
 import os
 import numpy as np
-import pdb
-import scipy.optimize
 import matplotlib.pyplot as plt
 import matplotlib.patches as Patches
 from shapely.geometry import Polygon
 
 import tensorflow as tf
 
-from data_util import GeneratorEnqueuer
+from utils.data_util import GeneratorEnqueuer
 
 # tf中定义了 tf.app.flags.FLAGS ，用于接受从终端传入的命令行参数，
 # “DEFINE_xxx”函数带3个参数，分别是变量名称，默认值，用法描述
@@ -36,9 +34,9 @@ FLAGS = tf.app.flags.FLAGS
 
 
 # data/images
-def get_images():
+def get_images(dir):#FLAGS.training_data_path or FLAGS.validate_data_path
     files = []
-    image_dir = os.path.join(FLAGS.training_data_path,"images")
+    image_dir = os.path.join(dir,"images")
     print("尝试加载目录中的图像：",image_dir)
     for ext in ['jpg', 'png', 'jpeg', 'JPG','png']:
         patten = os.path.join(image_dir, '*.{}'.format(ext))
@@ -195,12 +193,15 @@ def crop_area(im, polys, tags, crop_background=False, max_tries=50):
 
         # !!! 这个才是重点，剪裁了，裁出一块区域，包含着文本框
         # polys.shape=>[文本框个数, 4, 2]，4是4个点，2是x&y
-        # poly_axis_in_area得到的实际上是一个整张图的包含了切出来的区域的掩码(就是true/false)
+        # poly_axis_in_area得到的实际上是一个整张图的包含了切出来的区域的"掩码"(就是true/false)
         if polys.shape[0] != 0:
+            # 这句话就是表达，你们这些框，谁在我选出的这个区域里，4行表示每个点的x或者y，满足 xmin<x<xmax 且 ymin<y<ymax
             poly_axis_in_area = (polys[:, :, 0] >= xmin) & \
                                 (polys[:, :, 0] <= xmax) & \
                                 (polys[:, :, 1] >= ymin) & \
                                 (polys[:, :, 1] <= ymax)
+            # 上面这句话是判断某个点在区域里，
+            # [N,4,2]，下面这步，是说，框的4个点都在区域里，
             selected_polys = np.where(np.sum(poly_axis_in_area, axis=1) == 4)[0]
         else:
             selected_polys = []
@@ -208,7 +209,8 @@ def crop_area(im, polys, tags, crop_background=False, max_tries=50):
         if len(selected_polys) == 0:
             # no text in this area
             if crop_background:
-                print("crop_background")
+                #print("crop_background")
+                #记住：selected_polys是下标，是那些被天子选中的框的下标
                 return im[ymin:ymax+1, xmin:xmax+1, :], polys[selected_polys], tags[selected_polys]
             else:
                 continue
@@ -308,6 +310,7 @@ def point_dist_to_line(p1, p2,      p3):
 # 求拟合曲线的k和b
 def fit_line(p1, p2):
     # fit a line ax+by+c = 0
+    # ???
     if p1[0] == p1[1]:
         return [1., 0., -p1[0]]
     else:
@@ -447,6 +450,7 @@ def sort_rectangle(poly):
 def restore_rectangle_rbox(origin, geometry):
     d = geometry[:, :4]
     angle = geometry[:, 4]
+
     # for angle > 0
     origin_0 = origin[angle >= 0]
     d_0 = d[angle >= 0]
@@ -548,19 +552,22 @@ def generate_rbox(im_size, polys, tags):
         for i in range(4):
             # np.linalg.norm(求范数)：https://blog.csdn.net/hqh131360239/article/details/79061535
             # 这里求范数，就是在求文本框点之间的距离，r得到的是挨着我的点里面最小的那个距离，从第一个开始
+            # 挨个算一下每个点，到别人最近的最小距离
             r[i] = min(np.linalg.norm(poly[i] - poly[(i + 1) % 4]),
                        np.linalg.norm(poly[i] - poly[(i - 1) % 4]))
         # score map
         shrinked_poly = shrink_poly(poly.copy(), r).astype(np.int32)[np.newaxis, :, :]
         cv2.fillPoly(score_map, shrinked_poly, 1)
-        cv2.fillPoly(poly_mask, shrinked_poly, poly_idx + 1)
+        cv2.fillPoly(poly_mask, shrinked_poly, poly_idx + 1) # ？？？
 
         # if the poly is too small, then ignore it during training，如果太小，就不参与训练了
         # 终于明白training_mask的妙用了，就是控制那些点不参与训练
         poly_h = min(np.linalg.norm(poly[0] - poly[3]), np.linalg.norm(poly[1] - poly[2]))
         poly_w = min(np.linalg.norm(poly[0] - poly[1]), np.linalg.norm(poly[2] - poly[3]))
         if min(poly_h, poly_w) < FLAGS.min_text_size:
-            cv2.fillPoly(training_mask, poly.astype(np.int32)[np.newaxis, :, :], 0)
+            cv2.fillPoly(training_mask,  poly.astype(np.int32)[np.newaxis, :, :],    0)
+
+        # ???
         if tag:
             cv2.fillPoly(training_mask, poly.astype(np.int32)[np.newaxis, :, :], 0)
 
@@ -607,7 +614,8 @@ def generate_rbox(im_size, polys, tags):
                 if edge[1] == 0:
                     edge_opposite = [1, 0, -p2[0]]
                 else:
-                    #
+                    # edge[0] = k,
+                    # p2[1] - edge[0] * p2[0] = y - k*x = b
                     edge_opposite = [edge[0], -1, p2[1] - edge[0] * p2[0]]
             else:
                 # 经过p3 - after p3
@@ -670,6 +678,8 @@ def generate_rbox(im_size, polys, tags):
         rectange, rotate_angle = sort_rectangle(rectange)
 
         p0_rect, p1_rect, p2_rect, p3_rect = rectange
+
+        # xy_in_poly就是框里面的那些点的x,y坐标，应该很多
         for y, x in xy_in_poly:
             point = np.array([x, y], dtype=np.float32)
             # top
@@ -691,12 +701,17 @@ input_score_maps: data[2],
 input_geo_maps: data[3],
 input_training_masks: data[4]})
 '''
-def generator(input_size=512, batch_size=32,
+def generator(input_size=512,
+              batch_size=32,
+              data_dir=None,
+              name=None,
               background_ratio=3./8,
               random_scale=np.array([0.5, 1, 2.0, 3.0]),
               vis=False):
+
+    print("启动",name,"数据集加载器")
     # 获得训练集路径下所有图片名字
-    image_list = np.array(get_images())
+    image_list = np.array(get_images(data_dir))
     # index：总样本数
     index = np.arange(0, image_list.shape[0])
     # pdb.set_trace()
@@ -713,7 +728,7 @@ def generator(input_size=512, batch_size=32,
                 # 读取图片
                 im_fn = image_list[i]
                 _image = cv2.imread(im_fn)
-                print ("image name：",im_fn)
+                print (name," 成功加载图片文件：",im_fn)
                 h, w, _ = _image.shape
 
                 # 读取标签txt
@@ -725,7 +740,8 @@ def generator(input_size=512, batch_size=32,
                 if not os.path.exists(txt_fn):
                     print('text file {} does not exists'.format(txt_fn))
                     continue
-                print("成功加载标签文件：", txt_fn)
+
+                print(name," 成功加载标签文件：", txt_fn)
 
                 # 读出对应label文档中的内容
                 # text_polys：样本中文字坐标:[[x1, y1], [x2, y2], [x3, y3], [x4, y4]]，text_polys shape:[N,4,2]，4是4个点，2是x和y
@@ -748,6 +764,7 @@ def generator(input_size=512, batch_size=32,
 
                 # random crop a area from image
                 # np.random.rand() < background_ratio
+                # ??????? 不知道这个分支的目的？
                 if 1 < background_ratio: #background_ratio=3/8，background_ratio是个啥东东？
 
                     # crop background
@@ -790,7 +807,7 @@ def generator(input_size=512, batch_size=32,
                     resize_h = input_size # 强制改成512了啊！
                     resize_w = input_size
                     im = cv2.resize(im, dsize=(resize_w, resize_h))
-                    print("resize图像为512：",im.shape)
+                    print(name," resize图像为512：",im.shape)
 
                     # 把标注坐标缩放
                     resize_ratio_3_x = resize_w/float(new_w)
@@ -800,7 +817,7 @@ def generator(input_size=512, batch_size=32,
                     new_h, new_w, _ = im.shape
 
                     score_map, geo_map, training_mask = generate_rbox((new_h, new_w), text_polys, text_tags)
-                    print("RBox数据生成完毕(score_map, geo_map, training_mask)：",score_map.shape,geo_map.shape,training_mask.shape)
+                    print(name," RBox数据生成完毕(score_map, geo_map, training_mask)：",score_map.shape,geo_map.shape,training_mask.shape)
 
                 if vis:
                     fig, axs = plt.subplots(3, 2, figsize=(20, 30))
@@ -868,7 +885,7 @@ def generator(input_size=512, batch_size=32,
                 continue
 
 
-def get_batch(num_workers, **kwargs):
+def get_batch(num_workers,**kwargs):
     try:
         enqueuer = GeneratorEnqueuer(generator(**kwargs), use_multiprocessing=True)
         print('Generator use 10 batches for buffering, this may take a while, you can tune this yourself.')

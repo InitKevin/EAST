@@ -37,9 +37,7 @@ def get_predictor(checkpoint_path):
     logger.info('loading model')
     import tensorflow as tf
     import model
-    from icdar import restore_rectangle
-    import lanms
-    from eval import resize_image, sort_poly, detect
+    from main.eval import resize_image, sort_poly, detect
 
     input_images = tf.placeholder(tf.float32, shape=[None, None, None, 3], name='input_images')
     global_step = tf.get_variable('global_step', [], initializer=tf.constant_initializer(0), trainable=False)

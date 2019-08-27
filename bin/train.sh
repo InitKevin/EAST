@@ -12,18 +12,19 @@ if [ "$1" == "debug" ] || [ "$1" == "console" ]; then
     --debug=True \
     --gpu_list=0 \
     --max_steps=3 \
-    --batch_size_per_gpu=1 \
+    --batch_size=1 \
     --num_readers=1 \
     --input_size=512 \
-    --batch_size_per_gpu=1 \
-    --save_checkpoint_steps=1 \
+    --validate_steps=1 \
+    --validate_batch_num=30 \
+    --early_stop=1 \
     --save_summary_steps=1 \
     --checkpoint_path=./model/checkpoint/ \
     --text_scale=512 \
     --training_data_path=./data/train \
+    --validate_data_path=./data/validate \
     --geometry=RBOX \
     --learning_rate=0.0001 \
-    --num_readers=1 \
     --pretrained_model_path=./model/resnet_v1_50.ckpt
     exit
 fi
@@ -36,17 +37,18 @@ echo "###### 生产模式 ######"
     --debug=False \
     --gpu_list=0 \
     --max_steps=200000 \
-    --batch_size_per_gpu=32 \
+    --batch_size=32 \
     --num_readers=3 \
     --input_size=512 \
-    --batch_size_per_gpu=1 \
-    --save_checkpoint_steps=1000 \
+    --validate_steps=1000 \
+    --validate_batch_num=30 \
+    --early_stop=100 \
     --save_summary_steps=100 \
     --checkpoint_path=./model/checkpoint/ \
     --text_scale=512 \
     --training_data_path=./data/train \
+    --validate_data_path=./data/validate \
     --geometry=RBOX \
     --learning_rate=0.0001 \
-    --num_readers=1 \
     --pretrained_model_path=./model/resnet_v1_50.ckpt \
     >> ./logs/east_$Date.log 2>&1 &
