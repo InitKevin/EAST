@@ -57,6 +57,14 @@
 - 尝试在GPU上跑，笔记本上貌似跑不动，直接放弃，在GPU上跑，又出现读样本进程成为僵尸的问题
 - train.sh上增加了调试和生产模式，以及停止功能
 
+### 8.28
+
+- 增加了日志系统，去除了prints...
+- 增加了evaluator类，迁移自[evaluator.py](https://github.com/piginzoo/ctpn/blob/banjin-dev/utils/evaluate/evaluator.py)
+- 实现了evaluator.validate方法，用来调用detect方法来实现lanms
+- 增加了early stop机制，也是迁移自ctpn代码
+- 重构了summary写入的内容和时机
+
 # 原作者的日志，仅作保留
 
 ## EAST: An Efficient and Accurate Scene Text Detector

@@ -105,23 +105,31 @@ def model(images, weight_decay=1e-5, is_training=True):
 
     return F_score, F_geometry #1+5channel的图像
 
-
-def dice_coefficient(y_true_cls, y_pred_cls,
-                     training_mask):
+'''
+    define the loss used for training, contraning two part,
+    the first part we use dice(筛子) loss instead of weighted logloss,
+    the second part is the iou loss defined in the paper
+    
+    这个函数的实现有点意思，作者说，没照着论文里的代码撸，而是换了个思路，
+    就是看 概率IoU = 交/并，交是所有的概率相加，并是所有的概率相加
+    这个loss在[-1,1]之间，好吧，就是想知道这个损失反向求导的函数是啥，呵呵
+'''
+def dice_coefficient(y_true_cls, y_pred_cls,training_mask):
     '''
     dice loss
     coefficient:协同因素
-    :param y_true_cls:
-    :param y_pred_cls:
+    :param y_true_cls:  是一个1/0图
+    :param y_pred_cls:  是一个概率图，每个像素是一个0~1之间的概率值
     :param training_mask:
     :return:
     '''
-    eps = 1e-5
+    eps = 1e-5 #0.00001
+    # reduce_sum是压缩求和，得到一个标量
     intersection = tf.reduce_sum(y_true_cls * y_pred_cls * training_mask)
     union = tf.reduce_sum(y_true_cls * training_mask) + \
             tf.reduce_sum(y_pred_cls * training_mask) + \
             eps
-    loss = 1. - (2 * intersection / union)
+    loss = 1. - (2 * intersection / union) # loss在[-1,1]之间
     tf.summary.scalar('classification_dice_loss', loss)
     return loss
 
@@ -141,10 +149,10 @@ def loss(y_true_cls, y_pred_cls,
     :param training_mask: mask used in training, to ignore some text annotated by ###
     :return:
     '''
-    # score交叉熵
+    # score交叉熵，这玩意就是论文里面说的"balanced cross-entropy loss"？
     classification_loss = dice_coefficient(y_true_cls, y_pred_cls, training_mask)
     # scale classification loss to match the iou loss part
-    classification_loss *= 0.01
+    classification_loss *= 0.01 # 0.01是调节因子
 
     # d1 -> 距离top的长度, d2->right, d3->bottom, d4->left, theta->倾斜角度
     d1_gt,   d2_gt,   d3_gt,   d4_gt,   theta_gt   = tf.split(value=y_true_geo, num_or_size_splits=5, axis=3)
@@ -154,6 +162,7 @@ def loss(y_true_cls, y_pred_cls,
     area_gt   = (d1_gt   + d3_gt  ) * (d2_gt   + d4_gt  )
     area_pred = (d1_pred + d3_pred) * (d2_pred + d4_pred)
 
+    # 为何算最小+最小就是长、宽相交，这个你自己花个图就明白
     w_union = tf.minimum(d2_gt, d2_pred) + tf.minimum(d4_gt, d4_pred)
     h_union = tf.minimum(d1_gt, d1_pred) + tf.minimum(d3_gt, d3_pred)
 
