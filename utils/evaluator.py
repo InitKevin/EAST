@@ -41,40 +41,41 @@ def conf():
 
 # 用来批量验证
 # 入参： t_xxxx，都是张量
-def validate(sess,batch_num,generator,f_score, f_geometry,input_images):
+def validate(sess,batch_num,batch_size, generator,f_score, f_geometry,input_images):
 
     precision_sum = recall_sum = f1_sum = 0
 
-    for step in range(batch_num):
+    for step in range(batch_num):# 验证数据集也是循环iterate，所以要要告诉程序iterate多少个batch
         # 取出一个batch的数据
-        data = next(generator)
+        images,labels = next(generator)
 
         print("[验证] 加载了一张图片，准备训练...")
 
-        score, geometry = sess.run([f_score, f_geometry],feed_dict={input_images: data[0]})
+        scores,geometrys = sess.run([f_score, f_geometry],feed_dict={input_images: images})
 
-        boxes, timer = detect(score_map=score, geo_map=geometry, timer=timer)
-        logger.info('net {:.0f}ms, restore {:.0f}ms, nms {:.0f}ms'.format(
-            timer['net'] * 1000, timer['restore'] * 1000, timer['nms'] * 1000))
+        print("scores/geometrys shape:",scores.shape,geometrys.shape)
 
-        bbox_pred = boxes[:, :8]
+        # 注意这个detect是找出一张图中的框们
+        for i in range(scores.shape[0]):
+            score = scores[i]
+            geometry = geometrys[i]
 
-        metrics = evaluate(GT_labels, bbox_pred, conf())
-        precision_sum += metrics['precision']
-        recall_sum += metrics['recall']
-        f1_sum += metrics['hmean']
-        logger.debug("图片%s的探测结果的精确度:%f,召回率:%f,F1:%f", image_name,
-                     metrics['precision'], metrics['recall'], metrics['hmean'])
-    precision_mean = 0
-    recall_mean = 0
-    f1_mean = 0
-    if len(image_list) > 0:
-        precision_mean = precision_sum / len(image_list)
-        recall_mean = recall_sum / len(image_list)
-        f1_mean = f1_sum / len(image_list)
+            boxes, timer = detect(score_map=score, geo_map=geometry, timer=timer)
+            bbox_pred = boxes[:, :8]
 
-    logger.debug("这批%d个图片的平均的精确度:%f,召回率:%f,F1:%f",
-                 len(image_list), precision_mean, recall_mean, f1_mean)
+            metrics = evaluate(labels, bbox_pred, conf())
+            precision_sum += metrics['precision']
+            recall_sum += metrics['recall']
+            f1_sum += metrics['hmean']
+
+            logger.debug("图片%s的探测结果的精确度:%f,召回率:%f,F1:%f", image_name,
+                         metrics['precision'], metrics['recall'], metrics['hmean'])
+
+    precision_mean = precision_sum / batch_num * batch_size
+    recall_mean = recall_sum / batch_num * batch_size
+    f1_mean = f1_sum / batch_num * batch_size
+
+    logger.debug("这批%d个图片的平均的精确度:%f,召回率:%f,F1:%f",batch_num, precision_mean, recall_mean, f1_mean)
 
     return precision_mean, recall_mean, f1_mean
 

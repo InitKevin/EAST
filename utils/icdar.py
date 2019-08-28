@@ -5,13 +5,12 @@ import cv2
 import time
 import os
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.patches as Patches
 from shapely.geometry import Polygon
-
 import tensorflow as tf
-
 from utils.data_util import GeneratorEnqueuer
+import logging
+
+logger = logging.getLogger("Generator")
 
 # tf中定义了 tf.app.flags.FLAGS ，用于接受从终端传入的命令行参数，
 # “DEFINE_xxx”函数带3个参数，分别是变量名称，默认值，用法描述
@@ -27,28 +26,25 @@ tf.app.flags.DEFINE_integer('min_text_size', 10,
 tf.app.flags.DEFINE_float('min_crop_side_ratio', 0.1,
                           'when doing random crop from input image, the'
                           'min length of min(H, W')
-tf.app.flags.DEFINE_string('geometry', 'RBOX',
-                           'which geometry to generate, RBOX or QUAD')
-
+tf.app.flags.DEFINE_string('geometry', 'RBOX','which geometry to generate, RBOX or QUAD')
 FLAGS = tf.app.flags.FLAGS
-
 
 # data/images
 def get_images(dir):#FLAGS.training_data_path or FLAGS.validate_data_path
     files = []
     image_dir = os.path.join(dir,"images")
-    print("尝试加载目录中的图像：",image_dir)
+    logger.debug("尝试加载目录中的图像：%s",image_dir)
     for ext in ['jpg', 'png', 'jpeg', 'JPG','png']:
         patten = os.path.join(image_dir, '*.{}'.format(ext))
-        print("检索模式：",patten)
+        logger.debug("检索模式：",patten)
         files.extend(glob.glob(patten))
 
     if FLAGS.debug:
-        print("调试模式，仅加载10张图片")
+        logger.debug("调试模式，仅加载10张图片")
         _len = min(len(files),10)
         files = files[:_len]
 
-    print("加载完毕%d图像" % len(files))
+    logger.debug("加载完毕%d图像" , len(files))
     return files
 
 
@@ -105,7 +101,7 @@ def check_and_validate_polys(polys, tags, xxx_todo_changeme):
     '''
     (h, w) = xxx_todo_changeme
     if polys.shape[0] == 0:
-        print("polys shape is 0:",polys.shape)
+        logger.debug("polys shape is 0:%r",polys.shape)
         return polys
     polys[:, :, 0] = np.clip(polys[:, :, 0], 0, w-1) # polys shape:[N,4,2]，4是4个点，2是x和y
     polys[:, :, 1] = np.clip(polys[:, :, 1], 0, h-1) # 这个是怕这个图的标注越界？可是怎么可能会越界呢？不懂？？？
@@ -115,15 +111,15 @@ def check_and_validate_polys(polys, tags, xxx_todo_changeme):
     for poly, tag in zip(polys, tags):
         p_area = polygon_area(poly)
         if abs(p_area) < 1:# 如果面积小于1
-            # print poly
-            print('文字区域面积小于1')
+            # logger.debug poly
+            logger.debug('文字区域面积小于1')
             continue
         if p_area > 0:
-            print('poly in wrong direction')
+            logger.debug('poly in wrong direction')
             poly = poly[(0, 3, 2, 1), :]
         validated_polys.append(poly)
         validated_tags.append(tag)
-    # print("finish polys process:%d,%d" % (len(validated_polys),len(validated_tags)))
+    # logger.debug("finish polys process:%d,%d" % (len(validated_polys),len(validated_tags)))
     return np.array(validated_polys), np.array(validated_tags)
 
 # 这个函数真心没看懂，远航君给讲了一下，豁然开朗
@@ -187,14 +183,15 @@ def crop_area(im, polys, tags, crop_background=False, max_tries=50):
         ymin = np.clip(ymin, 0, h-1) # 诡异？ ymin是一个数啊，clip后，实际上我理解就是取整到[0,h-1]之间，把这个数
         ymax = np.clip(ymax, 0, h-1) # 比如 np.clip(-33,0,219)=> 0
 
-        if xmax - xmin < FLAGS.min_crop_side_ratio*w or ymax - ymin < FLAGS.min_crop_side_ratio*h:
-            # area too small
-            continue
+        if xmax - xmin < FLAGS.min_crop_side_ratio*w or \
+           ymax - ymin < FLAGS.min_crop_side_ratio*h:
+           # area too small
+           continue
 
         # !!! 这个才是重点，剪裁了，裁出一块区域，包含着文本框
         # polys.shape=>[文本框个数, 4, 2]，4是4个点，2是x&y
         # poly_axis_in_area得到的实际上是一个整张图的包含了切出来的区域的"掩码"(就是true/false)
-        if polys.shape[0] != 0:
+        if polys.shape[0] != 0: # 至少有1个框
             # 这句话就是表达，你们这些框，谁在我选出的这个区域里，4行表示每个点的x或者y，满足 xmin<x<xmax 且 ymin<y<ymax
             poly_axis_in_area = (polys[:, :, 0] >= xmin) & \
                                 (polys[:, :, 0] <= xmax) & \
@@ -206,11 +203,9 @@ def crop_area(im, polys, tags, crop_background=False, max_tries=50):
         else:
             selected_polys = []
 
-        if len(selected_polys) == 0:
+        if len(selected_polys) == 0:#说明你切出来的部分，是不包含任何框的
             # no text in this area
-            if crop_background:
-                #print("crop_background")
-                #记住：selected_polys是下标，是那些被天子选中的框的下标
+            if crop_background: #如果标志就是说，我要没有框的背景的话，就把这个没有框的图像返回去，selected_polys是个空数组哈
                 return im[ymin:ymax+1, xmin:xmax+1, :], polys[selected_polys], tags[selected_polys]
             else:
                 continue
@@ -222,7 +217,7 @@ def crop_area(im, polys, tags, crop_background=False, max_tries=50):
         # 别忘了，要调整一下切出来的子图的坐标
         polys[:, :, 0] -= xmin
         polys[:, :, 1] -= ymin
-        # print("crop return:", im.shape, polys.shape, tags.shape)
+        # logger.debug("crop return:", im.shape, polys.shape, tags.shape)
         return im, polys, tags
 
     return im, polys, tags
@@ -268,7 +263,7 @@ def shrink_poly(poly, r):
         poly[2][1] -= R * r[2] * np.cos(theta)
     else:
         ## p0, p3
-        # print poly
+        # logger.debug poly
         theta = np.arctan2((poly[3][0] - poly[0][0]), (poly[3][1] - poly[0][1]))
         poly[0][0] += R * r[0] * np.sin(theta)
         poly[0][1] += R * r[0] * np.cos(theta)
@@ -323,10 +318,10 @@ def fit_line(p1, p2):
 def line_cross_point(line1, line2):
     # line1 0= ax+by+c, compute the cross point of line1 and line2
     if line1[0] != 0 and line1[0] == line2[0]: #k,也就是斜率一样，两条线平行啊，没交叉点啊
-        print('Cross point does not exist')
+        logger.debug('Cross point does not exist')
         return None
     if line1[0] == 0 and line2[0] == 0: # 都是平行于x轴，没交叉点啊
-        print('Cross point does not exist')
+        logger.debug('Cross point does not exist')
         return None
     if line1[1] == 0: #??? 中间的一位是0的是啥含义来着？忘了
         x = -line1[2]
@@ -428,9 +423,11 @@ def sort_rectangle(poly):
         p_lowest_right = (p_lowest - 1) % 4
         p_lowest_left = (p_lowest + 1) % 4
         angle = np.arctan(-(poly[p_lowest][1] - poly[p_lowest_right][1])/(poly[p_lowest][0] - poly[p_lowest_right][0]))
+
         # assert angle > 0
         if angle <= 0:
-            print(angle, poly[p_lowest], poly[p_lowest_right])
+            logger.debug("角度<0: angle:%r,最低点：%r,最高点：%r",angle, poly[p_lowest], poly[p_lowest_right])
+
         if angle/np.pi * 180 > 45:
             # 这个点为p2 - this point is p2
             p2_index = p_lowest
@@ -534,7 +531,7 @@ def restore_rectangle(origin, geometry):
 def generate_rbox(im_size, polys, tags):
     h, w = im_size
 
-    print("开始生成rbox数据")
+    logger.debug("开始生成rbox数据")
 
     # 初始化3个蒙版，都是512x512
     poly_mask = np.zeros((h, w), dtype=np.uint8)
@@ -703,13 +700,21 @@ input_training_masks: data[4]})
 '''
 def generator(input_size=512,
               batch_size=32,
-              data_dir=None,
-              name=None,
+              type=None,
               background_ratio=3./8,
               random_scale=np.array([0.5, 1, 2.0, 3.0]),
               vis=False):
 
-    print("启动",name,"数据集加载器")
+    # 训练数据，返回那一坨东西，score map，geo_map,....
+    if type=="train":
+        data_dir=FLAGS.training_data_path,
+        name="训练"
+    # 测试数据，就一个图和labels就成了
+    else:
+        data_dir=FLAGS.validate_data_path,
+        name="验证"
+
+    logger.debug("启动[%s]数据集加载器",name)
     # 获得训练集路径下所有图片名字
     image_list = np.array(get_images(data_dir))
     # index：总样本数
@@ -718,7 +723,8 @@ def generator(input_size=512,
     while True:
         np.random.shuffle(index)
         images = []
-        image_fns = []
+        labels = []
+        image_names = []
         score_maps = []
         geo_maps = []
         training_masks = []
@@ -727,9 +733,9 @@ def generator(input_size=512,
             try:
                 # 读取图片
                 im_fn = image_list[i]
-                _image = cv2.imread(im_fn)
-                print (name," 成功加载图片文件：",im_fn)
-                h, w, _ = _image.shape
+                im = cv2.imread(im_fn)
+                logger.debug ("[%s]成功加载图片文件[%s]：",name,im_fn)
+                h, w, _ = im.shape
 
                 # 读取标签txt
                 label_name = os.path.splitext(os.path.basename(im_fn))[0]
@@ -738,10 +744,10 @@ def generator(input_size=512,
 
 
                 if not os.path.exists(txt_fn):
-                    print('text file {} does not exists'.format(txt_fn))
+                    logger.debug('标签文件不存在啊：%s',txt_fn)
                     continue
 
-                print(name," 成功加载标签文件：", txt_fn)
+                logger.debug("[%s]成功加载标签文件：%s",name,txt_fn)
 
                 # 读出对应label文档中的内容
                 # text_polys：样本中文字坐标:[[x1, y1], [x2, y2], [x3, y3], [x4, y4]]，text_polys shape:[N,4,2]，4是4个点，2是x和y
@@ -754,141 +760,127 @@ def generator(input_size=512,
                 # 保存其中的有效标签框，并修正文本框坐标溢出边界现象，多边形面积>1
                 text_polys, text_tags = check_and_validate_polys(text_polys, text_tags, (h, w))
 
-                # 这段是在resize图像，不知道为何这样做，是为了做样本增强么？resize4个选项，相当于数据多了4倍。不过，我感觉没必要
-                # if text_polys.shape[0] == 0:
-                #     continue
-                # random scale this image，为何要随机resize一下，做样本增强么？，random_scale=[0.5, 1, 2.0, 3.0]
-                rd_scale = np.random.choice(random_scale)
-                im = cv2.resize(_image, dsize=None, fx=rd_scale, fy=rd_scale)
-                text_polys *= rd_scale
+                # 如果是训练数据，就弄出来这2数据就够
+                if type=="validate":
+                    images.append(im)
+                    labels.append(text_polys)
+                # 这个是train，训练数据，那就多了，你知道的。。。。
+                else:
 
-                # random crop a area from image
-                # np.random.rand() < background_ratio
-                # ??????? 不知道这个分支的目的？
-                if 1 < background_ratio: #background_ratio=3/8，background_ratio是个啥东东？
+                    # !!!我注释掉了，哥不缺样本，没变要做增强，就用原图
+                    # 这段是在resize图像，不知道为何这样做，是为了做样本增强么？resize4个选项，相当于数据多了4倍。不过，我感觉没必要
+                    # if text_polys.shape[0] == 0:
+                    #     continue
+                    # random scale this image，为何要随机resize一下，做样本增强么？，random_scale=[0.5, 1, 2.0, 3.0]
+                    #rd_scale = np.random.choice(random_scale)
+                    #im = cv2.resize(_image, dsize=None, fx=rd_scale, fy=rd_scale)
+                    #text_polys *= rd_scale
 
-                    # crop background
-                    im, text_polys, text_tags = crop_area(im, text_polys, text_tags, crop_background=True)
-                    if text_polys.shape[0] > 0:
-                        print("cannot find background",im_fn)
-                        continue
+                    # 思考？
+                    # 为何这要做切一部分，然后resize成512x512呢，难道是，EAST对太长的图像识别能力差，特别是两边的点
+                    # 不对！我记得说的是一个框的两边的点，预测可能会不准。。。。所以才有个EAST增强。
+                    # 不知道了......????
 
-                    # pad and resize image,最终图片变成512x512，图像不变形，padding补足
-                    new_h, new_w, _ = im.shape
-                    max_h_w_i = np.max([new_h, new_w, input_size])
-                    im_padded = np.zeros((max_h_w_i, max_h_w_i, 3), dtype=np.uint8)
-                    im_padded[:new_h, :new_w, :] = im.copy()
-                    im = cv2.resize(im_padded, dsize=(input_size, input_size)) # input_size = 512
+                    # 关于background_ratio：https://github.com/argman/EAST/issues/133
+                    #
+                    # "its kind of data augmentation, random scale is used to scale the image ,
+                    # and then a patch is randomly cropped from the image, back_ground ratio is used to
+                    # crop some background training data that does not contain text. Anyway ,
+                    # maybe there is better strategy for augmentation" -- argman
+                    # 我理解这个目的就是为了测试一些纯负样本，不过我给人觉得没必要啊，干嘛非要虐待自己，专搞一些背景出来虐自己呢？有啥好处呢？
+                    # 这玩意预测出来，肯定score map都很低啊，而且，geo_map都为0，就是到各个框的上下左右都是0，何苦呢？不理解！！！？？？
+                    if np.random.rand() < background_ratio: #background_ratio=3/8，background_ratio是个啥东东？
 
-                    score_map        = np.zeros((input_size, input_size), dtype=np.uint8)
-                    geo_map_channels = 5 if FLAGS.geometry == 'RBOX' else 8
-                    geo_map          = np.zeros((input_size, input_size, geo_map_channels), dtype=np.float32)
-                    training_mask    = np.ones((input_size, input_size), dtype=np.uint8)
+                        # crop background，crop_background=True这个标志就是说，我要的是背景，不能给我包含任何框
+                        im, text_polys, text_tags = crop_area(im, text_polys, text_tags, crop_background=True)
+                        if text_polys.shape[0] > 0: #看！即使你切出来一块有框的图，我也不要，对！我！不！要！
+                            logger.debug("没法搞到一块不包含文本框的纯背景啊:(%s",im_fn)
+                            continue
 
-                else: # > 3/8
+                        # pad and resize image,最终图片变成512x512，图像不变形，padding补足
+                        # 注意！这个图像处理是这样的，例如：
+                        # 如果原图是300x400，那么变成了512x512，右面和下面都有黑色padding
+                        # 如果原图是600x800，那么先是800x800的黑色背景，然后把这张图帖进去，然后下面空出200高的黑色padding，然后这图resize成512x512
+                        new_h, new_w, _ = im.shape
+                        max_h_w_i = np.max([new_h, new_w, input_size]) # input_size是命令行参数，默认就是512，也没人改
+                        im_padded = np.zeros((max_h_w_i, max_h_w_i, 3), dtype=np.uint8)
+                        im_padded[:new_h, :new_w, :] = im.copy()
+                        im = cv2.resize(im_padded, dsize=(input_size, input_size)) # input_size = 512，看，这里强制给resize给
 
-                    # 这个是切出一个子图来，就用这个子图做训练了，我理解，还是跟数据增强差不多，可以大幅的提高图像的利用率啊
-                    im, text_polys, text_tags = crop_area(im, text_polys, text_tags, crop_background=False)
-                    if text_polys.shape[0] == 0:
-                        print("text_polys shapie is 0:", im_fn.shape,text_polys.shape)
-                        continue
+                        # 如果和下面的else对比一下，就能知道，他并没有产生rbox的数据（即调用generate_rbox）
+                        score_map        = np.zeros((input_size, input_size), dtype=np.uint8)
+                        geo_map_channels = 5 if FLAGS.geometry == 'RBOX' else 8
+                        geo_map          = np.zeros((input_size, input_size, geo_map_channels), dtype=np.float32)
+                        training_mask    = np.ones((input_size, input_size), dtype=np.uint8)
+                        logger.debug("[%s]生成了一个不包含文本框的背景数据：%s,score:%r,geo:%r,mask:%r",name,score_map.shape,geo_map.shape,training_mask.shape)
 
-                    h, w, _ = im.shape
+                    else: # > 3/8
 
-                    # 这步操作就是最终在不变形的情况下，把子图resize成512x512，空白处padding 0
-                    # pad the image to the training input size or the longer side of image
-                    new_h, new_w, _ = im.shape
-                    max_h_w_i = np.max([new_h, new_w, input_size]) # 就是看子图的宽、高、512里面谁最大，选谁做新图的长和宽
-                    im_padded = np.zeros((max_h_w_i, max_h_w_i, 3), dtype=np.uint8)
-                    im_padded[:new_h, :new_w, :] = im.copy() # 把切出来的那个子图拷贝进去
-                    im = im_padded
-                    # resize the image to input size
-                    new_h, new_w, _ = im.shape
-                    resize_h = input_size # 强制改成512了啊！
-                    resize_w = input_size
-                    im = cv2.resize(im, dsize=(resize_w, resize_h))
-                    print(name," resize图像为512：",im.shape)
+                        # 这个是切出一个子图来，就用这个子图做训练了，我理解，还是跟数据增强差不多，可以大幅的提高图像的利用率啊
+                        im, text_polys, text_tags = crop_area(im, text_polys, text_tags, crop_background=False)
+                        if text_polys.shape[0] == 0:
+                            logger.debug("文本框数量为0，image:%r,文本框：%r", im_fn.shape,text_polys.shape)
+                            continue
 
-                    # 把标注坐标缩放
-                    resize_ratio_3_x = resize_w/float(new_w)
-                    resize_ratio_3_y = resize_h/float(new_h)
-                    text_polys[:, :, 0] *= resize_ratio_3_x
-                    text_polys[:, :, 1] *= resize_ratio_3_y
-                    new_h, new_w, _ = im.shape
+                        h, w, _ = im.shape
 
-                    score_map, geo_map, training_mask = generate_rbox((new_h, new_w), text_polys, text_tags)
-                    print(name," RBox数据生成完毕(score_map, geo_map, training_mask)：",score_map.shape,geo_map.shape,training_mask.shape)
+                        # 这步操作就是最终在不变形的情况下，把子图resize成512x512，空白处padding 0
+                        # pad the image to the training input size or the longer side of image
+                        # 注意！这个图像处理是这样的，例如：
+                        # 如果原图是300x400，那么变成了512x512，右面和下面都有黑色padding
+                        # 如果原图是600x800，那么先是800x800的黑色背景，然后把这张图帖进去，然后下面空出200高的黑色padding，然后这图resize成512x512
+                        new_h, new_w, _ = im.shape
+                        max_h_w_i = np.max([new_h, new_w, input_size]) # 就是看子图的宽、高、512里面谁最大，选谁做新图的长和宽
+                        im_padded = np.zeros((max_h_w_i, max_h_w_i, 3), dtype=np.uint8)
+                        im_padded[:new_h, :new_w, :] = im.copy() # 把切出来的那个子图拷贝进去
+                        im = im_padded
+                        # resize the image to input size
+                        new_h, new_w, _ = im.shape
+                        resize_h = input_size # 强制改成512了啊！
+                        resize_w = input_size
+                        im = cv2.resize(im, dsize=(resize_w, resize_h))
 
-                if vis:
-                    fig, axs = plt.subplots(3, 2, figsize=(20, 30))
-                    # axs[0].imshow(im[:, :, ::-1])
-                    # axs[0].set_xticks([])
-                    # axs[0].set_yticks([])
-                    # for poly in text_polys:
-                    #     poly_h = min(abs(poly[3, 1] - poly[0, 1]), abs(poly[2, 1] - poly[1, 1]))
-                    #     poly_w = min(abs(poly[1, 0] - poly[0, 0]), abs(poly[2, 0] - poly[3, 0]))
-                    #     axs[0].add_artist(Patches.Polygon(
-                    #         poly * 4, facecolor='none', edgecolor='green', linewidth=2, linestyle='-', fill=True))
-                    #     axs[0].text(poly[0, 0] * 4, poly[0, 1] * 4, '{:.0f}-{:.0f}'.format(poly_h * 4, poly_w * 4),
-                    #                    color='purple')
-                    # axs[1].imshow(score_map)
-                    # axs[1].set_xticks([])
-                    # axs[1].set_yticks([])
-                    axs[0, 0].imshow(im[:, :, ::-1])
-                    axs[0, 0].set_xticks([])
-                    axs[0, 0].set_yticks([])
-                    for poly in text_polys:
-                        poly_h = min(abs(poly[3, 1] - poly[0, 1]), abs(poly[2, 1] - poly[1, 1]))
-                        poly_w = min(abs(poly[1, 0] - poly[0, 0]), abs(poly[2, 0] - poly[3, 0]))
-                        axs[0, 0].add_artist(Patches.Polygon(
-                            poly, facecolor='none', edgecolor='green', linewidth=2, linestyle='-', fill=True))
-                        axs[0, 0].text(poly[0, 0], poly[0, 1], '{:.0f}-{:.0f}'.format(poly_h, poly_w), color='purple')
-                    axs[0, 1].imshow(score_map[::, ::])
-                    axs[0, 1].set_xticks([])
-                    axs[0, 1].set_yticks([])
-                    axs[1, 0].imshow(geo_map[::, ::, 0])
-                    axs[1, 0].set_xticks([])
-                    axs[1, 0].set_yticks([])
-                    axs[1, 1].imshow(geo_map[::, ::, 1])
-                    axs[1, 1].set_xticks([])
-                    axs[1, 1].set_yticks([])
-                    axs[2, 0].imshow(geo_map[::, ::, 2])
-                    axs[2, 0].set_xticks([])
-                    axs[2, 0].set_yticks([])
-                    axs[2, 1].imshow(training_mask[::, ::])
-                    axs[2, 1].set_xticks([])
-                    axs[2, 1].set_yticks([])
-                    plt.tight_layout()
-                    plt.show()
-                    plt.close()
 
-                images.append(im[:, :, ::-1].astype(np.float32))
-                image_fns.append(im_fn)
-                score_maps.append(score_map[::4, ::4, np.newaxis].astype(np.float32))
-                geo_maps.append(geo_map[::4, ::4, :].astype(np.float32))
-                training_masks.append(training_mask[::4, ::4, np.newaxis].astype(np.float32))
+                        # 把标注坐标缩放
+                        resize_ratio_3_x = resize_w/float(new_w)
+                        resize_ratio_3_y = resize_h/float(new_h)
+                        text_polys[:, :, 0] *= resize_ratio_3_x
+                        text_polys[:, :, 1] *= resize_ratio_3_y
+                        new_h, new_w, _ = im.shape
+
+                        score_map, geo_map, training_mask = generate_rbox((new_h, new_w), text_polys, text_tags)
+                        logger.debug("[%s]RBox数据生成完毕(score,geo,mask)：%r,%r,%r",name,score_map.shape,geo_map.shape,training_mask.shape)
+
+                    images.append(im[:, :, ::-1].astype(np.float32))
+                    image_names.append(im_fn)
+                    score_maps.append(score_map[::4, ::4, np.newaxis].astype(np.float32))
+                    geo_maps.append(geo_map[::4, ::4, :].astype(np.float32))
+                    training_masks.append(training_mask[::4, ::4, np.newaxis].astype(np.float32))
 
                 count+=1
 
                 # 凑过了batch_size，就被这批数据yield出去
+                # 你要理解哈，最终的是啥，是32个(32假设是批次），32个images,score_maps,geo_maps.....
                 if len(images) == batch_size:
-                    yield images, image_fns, score_maps, geo_maps, training_masks
+                    logger.debug("[%s]返回一个批次数据：%d张",name,batch_size)
+                    yield images, image_names, score_maps, geo_maps, training_masks
                     images = []
-                    image_fns = []
+                    labels = []
+                    image_names = []
                     score_maps = []
                     geo_maps = []
                     training_masks = []
             except BaseException as e:
-                print("Error happened:",str(e))
+                logger.debug("Error happened:%s",str(e))
                 import traceback
-                traceback.print_exc()
+                traceback.logger.debug_exc()
                 continue
 
 
 def get_batch(num_workers,**kwargs):
     try:
         enqueuer = GeneratorEnqueuer(generator(**kwargs), use_multiprocessing=True)
-        print('Generator use 10 batches for buffering, this may take a while, you can tune this yourself.')
+        logger.debug('Generator use 10 batches for buffering, this may take a while, you can tune this yourself.')
         enqueuer.start(max_queue_size=10, workers=num_workers)
         generator_output = None
         while True:
@@ -897,7 +889,7 @@ def get_batch(num_workers,**kwargs):
                     generator_output = enqueuer.queue.get()
                     break
                 else:
-                    #print("queue is empty, which cause we are wating....")
+                    #logger.debug("queue is empty, which cause we are wating....")
                     time.sleep(1)
             yield generator_output
             generator_output = None

@@ -1,34 +1,17 @@
-import time
+import time,os
 import numpy as np
 import tensorflow as tf
 from tensorflow.contrib import slim
-from utils.debug_tool import enable_pystack
-tf.app.flags.DEFINE_string('name', 'east', '')
-tf.app.flags.DEFINE_integer('input_size', 512, '')
-tf.app.flags.DEFINE_integer('batch_size', 32, '')
-tf.app.flags.DEFINE_integer('num_readers', 16, '')
-tf.app.flags.DEFINE_float('learning_rate', 0.0001, '')
-tf.app.flags.DEFINE_integer('max_steps', 100000, '')
-tf.app.flags.DEFINE_float('moving_average_decay', 0.997, '')
-tf.app.flags.DEFINE_string('gpu_list', '0', '')
-tf.app.flags.DEFINE_boolean('debug',False,'')
-tf.app.flags.DEFINE_string('checkpoint_path', '/tmp/east_resnet_v1_50_rbox/', '')
-tf.app.flags.DEFINE_boolean('restore', False, 'whether to resotre from checkpoint')
-tf.app.flags.DEFINE_integer('validate_steps', 1000, '')
-tf.app.flags.DEFINE_integer('validate_batch_num', 30, '') # 一共检查多少个批次
-tf.app.flags.DEFINE_integer('save_summary_steps', 100, '')
-tf.app.flags.DEFINE_integer('early_stop', 100, '')
-tf.app.flags.DEFINE_string('pretrained_model_path', None, '')
-tf.app.flags.DEFINE_string('training_data_path', '', '')
-tf.app.flags.DEFINE_string('validate_data_path', '', '')
-
+from utils import log_util
 from nets import model
 from utils import icdar
 from utils.early_stop import EarlyStop
+from utils import evaluator
+import logging
 
 FLAGS = tf.app.flags.FLAGS
-
 gpus = list(range(len(FLAGS.gpu_list.split(','))))
+logger = logging.getLogger("Train")
 
 def tower_loss(images, score_maps, geo_maps, training_masks, reuse_variables=None):
     # Build inference graph
@@ -40,16 +23,14 @@ def tower_loss(images, score_maps, geo_maps, training_masks, reuse_variables=Non
 
     total_loss = tf.add_n([model_loss] + tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
 
-    # add summary
-    if reuse_variables is None:
-        tf.summary.image('input', images)
-        tf.summary.image('score_map', score_maps)
-        tf.summary.image('score_map_pred', f_score * 255)
-        tf.summary.image('geo_map_0', geo_maps[:, :, :, 0:1])
-        tf.summary.image('geo_map_0_pred', f_geometry[:, :, :, 0:1])
-        tf.summary.image('training_masks', training_masks)
-        tf.summary.scalar('model_loss', model_loss)
-        tf.summary.scalar('total_loss', total_loss)
+    tf.summary.image('input', images)
+    tf.summary.image('score_map', score_maps)
+    tf.summary.image('score_map_pred', f_score * 255)
+    tf.summary.image('geo_map_0', geo_maps[:, :, :, 0:1])
+    tf.summary.image('geo_map_0_pred', f_geometry[:, :, :, 0:1])
+    tf.summary.image('training_masks', training_masks)
+    tf.summary.scalar('model_loss', model_loss)
+    tf.summary.scalar('total_loss', total_loss)
 
     return total_loss, model_loss,f_score, f_geometry
 
@@ -73,7 +54,6 @@ def average_gradients(tower_grads):
 
 
 def main(argv=None):
-    import os
     os.environ['CUDA_VISIBLE_DEVICES'] = FLAGS.gpu_list
     if not tf.gfile.Exists(FLAGS.checkpoint_path):
         tf.gfile.MkDir(FLAGS.checkpoint_path)
@@ -92,6 +72,14 @@ def main(argv=None):
 
     global_step = tf.get_variable('global_step', [], initializer=tf.constant_initializer(0), trainable=False)
     learning_rate = tf.train.exponential_decay(FLAGS.learning_rate, global_step, decay_steps=10000, decay_rate=0.94, staircase=True)
+
+    # 这个是定义召回率、精确度和F1
+    v_recall = tf.Variable(0.001, trainable=False)
+    v_precision = tf.Variable(0.001, trainable=False)
+    v_f1 = tf.Variable(0.001, trainable=False)
+    tf.summary.scalar("Recall",v_recall)
+    tf.summary.scalar("Precision",v_precision)
+    tf.summary.scalar("F1",v_f1)
 
     # add summary
     tf.summary.scalar('learning_rate', learning_rate)
@@ -113,6 +101,7 @@ def main(argv=None):
                 isms = input_score_maps_split[i]
                 igms = input_geo_maps_split[i]
                 itms = input_training_masks_split[i]
+
                 # 模型定义！！！
                 total_loss, model_loss,f_score, f_geometry  = tower_loss(iis, isms, igms, itms, reuse_variables)
                 batch_norm_updates_op = tf.group(*tf.get_collection(tf.GraphKeys.UPDATE_OPS, scope))
@@ -142,13 +131,13 @@ def main(argv=None):
         # pretrained_model_path实际上是resnet50的pretrain模型
         variable_restore_op = slim.assign_from_checkpoint_fn(FLAGS.pretrained_model_path, slim.get_trainable_variables(),
                                                              ignore_missing_vars=True)
-        print("成功加载resnet预训练模型：",FLAGS.pretrained_model_path)
+        logger.debug("成功加载resnet预训练模型：%s",FLAGS.pretrained_model_path)
 
     early_stop = EarlyStop(FLAGS.early_stop)
 
     with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
         if FLAGS.restore:
-            print('continue training from previous checkpoint')
+            logger.debug('尝试从[%s]中恢复训练到半截的模型',FLAGS.checkpoint_path)
             # 这个是之前的checkpoint模型，可以半截接着训练
             ckpt = tf.train.latest_checkpoint(FLAGS.checkpoint_path)
             saver.restore(sess, ckpt)
@@ -156,20 +145,21 @@ def main(argv=None):
             sess.run(init)
             if FLAGS.pretrained_model_path is not None:
                 variable_restore_op(sess)
-            print("从头开始训练...")
+            logger.debug("从头开始训练...")
 
         data_generator = icdar.get_batch(num_workers=FLAGS.num_readers,
                                          input_size=FLAGS.input_size,
                                          batch_size=FLAGS.batch_size,
-                                         data_dir=FLAGS.training_data_path,
-                                         name="训练")
+                                         type="train")
+                                         # data_dir=FLAGS.training_data_path,
+                                         # name="训练")
 
         validate_data_generator = icdar.get_batch(num_workers=FLAGS.num_readers,
                                          input_size=FLAGS.input_size,
                                          batch_size=FLAGS.batch_size,
-                                         data_dir=FLAGS.training_data_path,
-                                         name="验证")
-
+                                         type="validate")
+                                         # data_dir=FLAGS.training_data_path,
+                                         # name="验证")
 
         # 开始训练啦！
         start = time.time()
@@ -177,7 +167,7 @@ def main(argv=None):
 
             # 取出一个batch的数据
             data = next(data_generator)
-            print("[训练] 加载了一张图片，准备训练...")
+            logger.debug("[训练] 加载了一张图片，准备训练...")
 
             # 训练他们
             ml, tl, _ = sess.run([model_loss,
@@ -189,41 +179,44 @@ def main(argv=None):
                                     input_geo_maps: data[3],
                                     input_training_masks: data[4]})
             if np.isnan(tl):
-                print('Loss diverged, stop training')
+                logger.debug('Loss diverged, stop training')
                 break
 
-            if step % 10 == 0:
-                avg_time_per_step = (time.time() - start)/10
-                avg_examples_per_second = (10 * FLAGS.batch_size * len(gpus))/(time.time() - start)
-                start = time.time()
-                print('Step {:06d}, model loss {:.4f}, total loss {:.4f}, {:.2f} seconds/step, {:.2f} examples/second'.format(
-                    step, ml, tl, avg_time_per_step, avg_examples_per_second))
 
             # if step % FLAGS.validate_steps == 0:
-            #     print("保存checkpoint:",FLAGS.checkpoint_path + 'model.ckpt')
+            #     logger.debug("保存checkpoint:",FLAGS.checkpoint_path + 'model.ckpt')
             #     saver.save(sess, FLAGS.checkpoint_path + 'model.ckpt', global_step=global_step)
             # 默认是1000步，validate一下
             if step % FLAGS.validate_steps == 0:
-                _accuracy = validate(f_score, f_geometry)
-                if is_need_early_stop(early_stop, _accuracy, saver, sess, epoch): break  # 用负的编辑距离
+                precision, recall, f1 = evaluator.validate(sess,
+                                                           FLAGS.validate_batch_num,
+                                                           FLAGS.batch_size,
+                                                           validate_data_generator,
+                                                           f_score,
+                                                           f_geometry,
+                                                           input_images)
+                # 更新三个scalar tensor
+                sess.run([tf.assign(v_f1, f1),
+                          tf.assign(v_recall, recall),
+                          tf.assign(v_precision, precision)])
 
-            # 默认是100
-            if step % FLAGS.save_summary_steps == 0:
-                _, tl, summary_str = sess.run([train_op,
-                                               total_loss,
-                                               summary_op],
-                                              feed_dict={
-                                                 input_images: data[0],
-                                                 input_score_maps: data[2],
-                                                 input_geo_maps: data[3],
-                                                 input_training_masks: data[4]})
-                print("写入summary...")
+                logger.debug("评估完毕:在第", step, "步,F1:",f1,",Recall:",recall,",Precision:",precision)
+                if is_need_early_stop(early_stop, f1, saver, sess, step): break  # 用负的编辑距离
+
+            if step % FLAGS.save_summary_steps == 0 and step % FLAGS.validate_steps != 0:
+                summary_str = sess.run(summary_op)
+                logger.debug("写入summary文件:",step,"步")
                 summary_writer.add_summary(summary_str, global_step=step)
-            print("[训练] 结束batch:",step)
+
+                avg_time_per_step = (time.time() - start)/FLAGS.save_summary_steps
+                avg_examples_per_second = (FLAGS.save_summary_steps * FLAGS.batch_size * len(gpus))/(time.time() - start)
+                start = time.time()
+                logger.debug('Step {:06d}, model loss {:.4f}, total loss {:.4f}, {:.2f} seconds/step, {:.2f} examples/second'.format(
+                    step, ml, tl, avg_time_per_step, avg_examples_per_second))
 
 
-def validate(f_score, f_geometry,input_images):
-    pass
+            logger.debug("[训练] 结束batch:",step)
+
 
 def is_need_early_stop(early_stop,value,saver,sess,step):
     decision = early_stop.decide(value)
@@ -234,7 +227,7 @@ def is_need_early_stop(early_stop,value,saver,sess,step):
 
     if decision == EarlyStop.BEST:
         logger.info("新Value值[%f]大于过去最好的Value值，早停计数器重置，并保存模型", value)
-        save_model(saver, sess, step)
+        saver.save(sess, FLAGS.checkpoint_path + 'model.ckpt', global_step=step)
         return False
 
     if decision == EarlyStop.STOP:
@@ -244,7 +237,28 @@ def is_need_early_stop(early_stop,value,saver,sess,step):
     logger.error("无法识别的EarlyStop结果：%r",decision)
     return True
 
+def init_flags():
+    tf.app.flags.DEFINE_string('name', 'east', '')
+    tf.app.flags.DEFINE_integer('input_size', 512, '')
+    tf.app.flags.DEFINE_integer('batch_size', 32, '')
+    tf.app.flags.DEFINE_integer('num_readers', 16, '')
+    tf.app.flags.DEFINE_float('learning_rate', 0.0001, '')
+    tf.app.flags.DEFINE_integer('max_steps', 100000, '')
+    tf.app.flags.DEFINE_float('moving_average_decay', 0.997, '')
+    tf.app.flags.DEFINE_string('gpu_list', '0', '')
+    tf.app.flags.DEFINE_boolean('debug',False,'')
+    tf.app.flags.DEFINE_string('checkpoint_path', '/tmp/east_resnet_v1_50_rbox/', '')
+    tf.app.flags.DEFINE_boolean('restore', False, 'whether to resotre from checkpoint')
+    tf.app.flags.DEFINE_integer('validate_steps', 1000, '')
+    tf.app.flags.DEFINE_integer('validate_batch_num', 30, '') # 一共检查多少个批次
+    tf.app.flags.DEFINE_integer('save_summary_steps', 100, '')
+    tf.app.flags.DEFINE_integer('early_stop', 100, '')
+    tf.app.flags.DEFINE_string('pretrained_model_path', None, '')
+    tf.app.flags.DEFINE_string('training_data_path', '', '')
+    tf.app.flags.DEFINE_string('validate_data_path', '', '')
+
 
 if __name__ == '__main__':
-    enable_pystack()
+    init_flags()
+    log_util.init_logger()
     tf.app.run()
