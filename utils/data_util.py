@@ -6,6 +6,10 @@ import time
 import numpy as np
 import threading
 import multiprocessing
+import logging
+
+logger = logging.getLogger(__name__)
+
 try:
     import queue
 except ImportError:
@@ -47,7 +51,7 @@ class GeneratorEnqueuer():
         """
         import os
         def data_generator_task():
-            print("the process was created,pid:",os.getpid())
+            logger.info("启动的进程PID:%r",os.getpid())
             from utils.debug_tool import enable_pystack
             enable_pystack()
             while not self._stop_event.is_set():
@@ -63,11 +67,11 @@ class GeneratorEnqueuer():
 
         try:
             if self._use_multiprocessing:
-                print("we use multi-process...")
+                logger.info("启动多进程模式加载数据")
                 self.queue = multiprocessing.Queue(maxsize=max_queue_size)
                 self._stop_event = multiprocessing.Event()
             else:
-                print("we use multi-thread...")
+                logger.info("we use multi-thread...")
                 self.queue = queue.Queue()
                 self._stop_event = threading.Event()
 

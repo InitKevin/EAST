@@ -11,32 +11,16 @@ from utils.data_util import GeneratorEnqueuer
 import logging
 
 logger = logging.getLogger("Generator")
-
-# tf中定义了 tf.app.flags.FLAGS ，用于接受从终端传入的命令行参数，
-# “DEFINE_xxx”函数带3个参数，分别是变量名称，默认值，用法描述
-tf.app.flags.DEFINE_string('training_data_path', '/data/ocr/icdar2015/',
-                           'training dataset to use')
-tf.app.flags.DEFINE_integer('max_image_large_side', 1280,
-                            'max image size of training')
-tf.app.flags.DEFINE_integer('max_text_size', 800,
-                            'if the text in the input image is bigger than this, then we resize'
-                            'the image according to this')
-tf.app.flags.DEFINE_integer('min_text_size', 10,
-                            'if the text size is smaller than this, we ignore it during training')
-tf.app.flags.DEFINE_float('min_crop_side_ratio', 0.1,
-                          'when doing random crop from input image, the'
-                          'min length of min(H, W')
-tf.app.flags.DEFINE_string('geometry', 'RBOX','which geometry to generate, RBOX or QUAD')
 FLAGS = tf.app.flags.FLAGS
 
-# data/images
-def get_images(dir):#FLAGS.training_data_path or FLAGS.validate_data_path
+def get_images(dir):
     files = []
+    print(dir)
     image_dir = os.path.join(dir,"images")
     logger.debug("尝试加载目录中的图像：%s",image_dir)
     for ext in ['jpg', 'png', 'jpeg', 'JPG','png']:
         patten = os.path.join(image_dir, '*.{}'.format(ext))
-        logger.debug("检索模式：",patten)
+        logger.debug("检索模式：%s",patten)
         files.extend(glob.glob(patten))
 
     if FLAGS.debug:
@@ -46,6 +30,7 @@ def get_images(dir):#FLAGS.training_data_path or FLAGS.validate_data_path
 
     logger.debug("加载完毕%d图像" , len(files))
     return files
+# data/images
 
 
 def load_annoataion(p):
@@ -466,35 +451,58 @@ def sort_rectangle(poly):
             p2_index = (p3_index + 3) % 4
             return poly[[p0_index, p1_index, p2_index, p3_index]], angle
 
-
+# 这个函数只有推断的时候用，训练不用
+# 主要核心是调用lanms，来算出需要的框
+# origin   [N,2]    放着前景的坐标，x从小到大
+# geometry [h,w,5]  5张原图大小的"怪怪"图，你懂得
 def restore_rectangle_rbox(origin, geometry):
-    d = geometry[:, :4]
-    angle = geometry[:, 4]
+
+    d = geometry[:, :4]    #geo_map:(h, w, 5)，[:4]是只切了前4个, d => [h,w,4]
+    angle = geometry[:, 4] #geo_map:(h, w, 5)，[4]是第5个        angle=> [h,w,1]
 
     # for angle > 0
-    origin_0 = origin[angle >= 0]
-    d_0 = d[angle >= 0]
-    angle_0 = angle[angle >= 0]
-    if origin_0.shape[0] > 0:
-        p = np.array([np.zeros(d_0.shape[0]), -d_0[:, 0] - d_0[:, 2],
-                      d_0[:, 1] + d_0[:, 3], -d_0[:, 0] - d_0[:, 2],
-                      d_0[:, 1] + d_0[:, 3], np.zeros(d_0.shape[0]),
-                      np.zeros(d_0.shape[0]), np.zeros(d_0.shape[0]),
-                      d_0[:, 3], -d_0[:, 2]])
-        p = p.transpose((1, 0)).reshape((-1, 5, 2))  # N*5*2
+    # origin<===xy_text = np.argwhere(score_map > score_map_thresh)，而且是排过序的
+    # 恩，结果是，那些是前景的点，并且按照置信度排过序，而且他们形成的矩形的角度大于零 （靠！条件真TM多）
+    origin_0 = origin[angle >= 0] # 那些点
+    d_0 = d[angle >= 0]           # 那些点的距离们
+    angle_0 = angle[angle >= 0]   # 那些点的角度们
 
+    if origin_0.shape[0] > 0:
+        # 什么鬼？这么复杂
+        # 增加1个新维度[10,h,w]
+        p = np.array([np.zeros(d_0.shape[0]),
+                      -d_0[:, 0] - d_0[:, 2], # d维度是[h,w,5],d_0[:, 0]实际上是降维了[h,w]，或者说[h,w,1]，实际上得到是矩形的高
+                       d_0[:, 1] + d_0[:, 3], # 矩形的宽,维度是[h,w]
+                      -d_0[:, 0] - d_0[:, 2], # 矩形的宽负数,维度是[h,w]
+                       d_0[:, 1] + d_0[:, 3], # 矩形的宽，维度是[h,w]
+                      np.zeros(d_0.shape[0]),
+                      np.zeros(d_0.shape[0]),
+                      np.zeros(d_0.shape[0]),
+                      d_0[:, 3],
+                      -d_0[:, 2]])
+        # 这里实在想不清楚了，需要调试一下
+        logger.debug("======================================================")
+        logger.debug("d_0.shape[0]:%r",d_0.shape[0])
+        logger.debug("-d_0[:, 0] - d_0[:, 2].shape:%r", (-d_0[:, 0] - d_0[:, 2]).shape)
+        logger.debug("得到的p的shape:%r",p.shape)
+        logger.debug("得到的p:%r", p)
+
+
+        p = p.transpose((1, 0)).reshape((-1, 5, 2))  # N*5*2
+        logger.debug("p的转置+reshape(-1,5,2):%r", p)
+
+        # 旋转矩阵
         rotate_matrix_x = np.array([np.cos(angle_0), np.sin(angle_0)]).transpose((1, 0))
         rotate_matrix_x = np.repeat(rotate_matrix_x, 5, axis=1).reshape(-1, 2, 5).transpose((0, 2, 1))  # N*5*2
-
         rotate_matrix_y = np.array([-np.sin(angle_0), np.cos(angle_0)]).transpose((1, 0))
         rotate_matrix_y = np.repeat(rotate_matrix_y, 5, axis=1).reshape(-1, 2, 5).transpose((0, 2, 1))
 
+        # 旋转
         p_rotate_x = np.sum(rotate_matrix_x * p, axis=2)[:, :, np.newaxis]  # N*5*1
         p_rotate_y = np.sum(rotate_matrix_y * p, axis=2)[:, :, np.newaxis]  # N*5*1
-
         p_rotate = np.concatenate([p_rotate_x, p_rotate_y], axis=2)  # N*5*2
 
-        p3_in_origin = origin_0 - p_rotate[:, 4, :]
+        p3_in_origin = origin_0 - p_rotate[:, 4, :] # origin_0[N,2]
         new_p0 = p_rotate[:, 0, :] + p3_in_origin  # N*2
         new_p1 = p_rotate[:, 1, :] + p3_in_origin
         new_p2 = p_rotate[:, 2, :] + p3_in_origin
@@ -512,10 +520,15 @@ def restore_rectangle_rbox(origin, geometry):
     d_1 = d[angle < 0]
     angle_1 = angle[angle < 0]
     if origin_1.shape[0] > 0:
-        p = np.array([-d_1[:, 1] - d_1[:, 3], -d_1[:, 0] - d_1[:, 2],
-                      np.zeros(d_1.shape[0]), -d_1[:, 0] - d_1[:, 2],
-                      np.zeros(d_1.shape[0]), np.zeros(d_1.shape[0]),
-                      -d_1[:, 1] - d_1[:, 3], np.zeros(d_1.shape[0]),
+        # 角度小于零，旋转矩阵不一样了
+        p = np.array([-d_1[:, 1] - d_1[:, 3],
+                      -d_1[:, 0] - d_1[:, 2],
+                      np.zeros(d_1.shape[0]),
+                      -d_1[:, 0] - d_1[:, 2],
+                      np.zeros(d_1.shape[0]),
+                      np.zeros(d_1.shape[0]),
+                      -d_1[:, 1] - d_1[:, 3],
+                      np.zeros(d_1.shape[0]),
                       -d_1[:, 1], -d_1[:, 2]])
         p = p.transpose((1, 0)).reshape((-1, 5, 2))  # N*5*2
 
@@ -740,11 +753,11 @@ def generator(input_size=512,
 
     # 训练数据，返回那一坨东西，score map，geo_map,....
     if type=="train":
-        data_dir=FLAGS.training_data_path,
+        data_dir=FLAGS.training_data_path
         name="训练"
     # 测试数据，就一个图和labels就成了
     else:
-        data_dir=FLAGS.validate_data_path,
+        data_dir=FLAGS.validate_data_path
         name="验证"
 
     logger.debug("启动[%s]数据集加载器",name)
@@ -845,7 +858,8 @@ def generator(input_size=512,
                         geo_map_channels = 5 if FLAGS.geometry == 'RBOX' else 8
                         geo_map          = np.zeros((input_size, input_size, geo_map_channels), dtype=np.float32)
                         training_mask    = np.ones((input_size, input_size), dtype=np.uint8)
-                        logger.debug("[%s]生成了一个不包含文本框的背景数据：%s,score:%r,geo:%r,mask:%r",name,score_map.shape,geo_map.shape,training_mask.shape)
+                        logger.debug("[%s]生成了一个不包含文本框的背景数据：score:%r,geo:%r,mask:%r",
+                                     name,score_map.shape,geo_map.shape,training_mask.shape)
 
                     else: # > 3/8
 
@@ -913,7 +927,6 @@ def generator(input_size=512,
 def get_batch(num_workers,**kwargs):
     try:
         enqueuer = GeneratorEnqueuer(generator(**kwargs), use_multiprocessing=True)
-        logger.debug('Generator use 10 batches for buffering, this may take a while, you can tune this yourself.')
         enqueuer.start(max_queue_size=10, workers=num_workers)
         generator_output = None
         while True:

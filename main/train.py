@@ -10,7 +10,6 @@ from utils import evaluator
 import logging
 
 FLAGS = tf.app.flags.FLAGS
-gpus = list(range(len(FLAGS.gpu_list.split(','))))
 logger = logging.getLogger("Train")
 
 def tower_loss(images, score_maps, geo_maps, training_masks, reuse_variables=None):
@@ -55,6 +54,8 @@ def average_gradients(tower_grads):
 
 def main(argv=None):
     os.environ['CUDA_VISIBLE_DEVICES'] = FLAGS.gpu_list
+    gpus = list(range(len(FLAGS.gpu_list.split(','))))
+
     if not tf.gfile.Exists(FLAGS.checkpoint_path):
         tf.gfile.MkDir(FLAGS.checkpoint_path)
     else:
@@ -151,15 +152,11 @@ def main(argv=None):
                                          input_size=FLAGS.input_size,
                                          batch_size=FLAGS.batch_size,
                                          type="train")
-                                         # data_dir=FLAGS.training_data_path,
-                                         # name="训练")
 
         validate_data_generator = icdar.get_batch(num_workers=FLAGS.num_readers,
                                          input_size=FLAGS.input_size,
                                          batch_size=FLAGS.batch_size,
                                          type="validate")
-                                         # data_dir=FLAGS.training_data_path,
-                                         # name="验证")
 
         # 开始训练啦！
         start = time.time()
@@ -257,6 +254,19 @@ def init_flags():
     tf.app.flags.DEFINE_string('training_data_path', '', '')
     tf.app.flags.DEFINE_string('validate_data_path', '', '')
 
+    # tf中定义了 tf.app.flags.FLAGS ，用于接受从终端传入的命令行参数，
+    # “DEFINE_xxx”函数带3个参数，分别是变量名称，默认值，用法描述
+    tf.app.flags.DEFINE_integer('max_image_large_side', 1280,
+                                'max image size of training')
+    tf.app.flags.DEFINE_integer('max_text_size', 800,
+                                'if the text in the input image is bigger than this, then we resize'
+                                'the image according to this')
+    tf.app.flags.DEFINE_integer('min_text_size', 10,
+                                'if the text size is smaller than this, we ignore it during training')
+    tf.app.flags.DEFINE_float('min_crop_side_ratio', 0.1,
+                              'when doing random crop from input image, the'
+                              'min length of min(H, W')
+    tf.app.flags.DEFINE_string('geometry', 'RBOX','which geometry to generate, RBOX or QUAD')
 
 if __name__ == '__main__':
     init_flags()

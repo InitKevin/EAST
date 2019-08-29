@@ -5,17 +5,20 @@ import numpy as np
 import tensorflow as tf
 
 import lanms
-
-tf.app.flags.DEFINE_string('test_data_path', '/tmp/ch4_test_images/images/', '')
-tf.app.flags.DEFINE_string('gpu_list', '0', '')
-tf.app.flags.DEFINE_string('checkpoint_path', '/tmp/east_icdar2015_resnet_v1_50_rbox/', '')
-tf.app.flags.DEFINE_string('output_dir', '/tmp/ch4_test_images/images/', '')
-tf.app.flags.DEFINE_bool('no_write_images', False, 'do not write images')
-
 import model
+import logging
 from utils.icdar import restore_rectangle
 
+
+def init_flags():
+    tf.app.flags.DEFINE_string('test_data_path', '/tmp/ch4_test_images/images/', '')
+    tf.app.flags.DEFINE_string('gpu_list', '0', '')
+    tf.app.flags.DEFINE_string('checkpoint_path', '/tmp/east_icdar2015_resnet_v1_50_rbox/', '')
+    tf.app.flags.DEFINE_string('output_dir', '/debug/images/', '')
+    tf.app.flags.DEFINE_bool('no_write_images', False, 'do not write images')
+
 FLAGS = tf.app.flags.FLAGS
+logger = logging.getLogger("Eval")
 
 def get_images():
     '''
@@ -83,9 +86,9 @@ def detect(score_map, geo_map, timer, score_map_thresh=0.8, box_thresh=0.1, nms_
         score_map = score_map[0, :, :, 0]
         geo_map = geo_map[0, :, :, ] # (h, w, 5)
     # filter the score map，返回的是xy_text二维坐标数据
-    xy_text = np.argwhere(score_map > score_map_thresh)
+    xy_text = np.argwhere(score_map > score_map_thresh) #返回大于阈值的坐标，(x,y)二维的坐标
     # sort the text boxes via the y axis，argsort函数返回的是数组值从小到大的索引值
-    xy_text = xy_text[np.argsort(xy_text[:, 0])] #返回还是二维坐标数据组，只不过是按照x排序了
+    xy_text = xy_text[np.argsort(xy_text[:, 0])] #返回还是二维坐标数据组，只不过是按照x排序了，argsort是从小到大
     # restore
     start = time.time()
     # ::-1 把数组倒过来
@@ -95,7 +98,9 @@ def detect(score_map, geo_map, timer, score_map_thresh=0.8, box_thresh=0.1, nms_
                                             xy_text[:, 1],
                                             :
                                           ]) # N*4*2
-    print('{} text boxes before nms'.format(text_box_restored.shape[0]))
+    logger.debug("从预测得到了%d个框:%r",text_box_restored.shape[0],text_box_restored.shape)
+
+    # 返回的box是 8个点的坐标值+1个是否文字的置信度
     boxes = np.zeros((text_box_restored.shape[0], 9), dtype=np.float32)
     boxes[:, :8] = text_box_restored.reshape((-1, 8))
     boxes[:, 8] = score_map[xy_text[:, 0], xy_text[:, 1]]
@@ -109,15 +114,16 @@ def detect(score_map, geo_map, timer, score_map_thresh=0.8, box_thresh=0.1, nms_
     timer['nms'] = time.time() - start
 
     if boxes.shape[0] == 0:
+        logger.warning("经过NMS合并，结果居然为0个框")
         return None, timer
 
     # here we filter some low score boxes by the average score map,
     # this is different from the orginal paper
     for i, box in enumerate(boxes):
         mask = np.zeros_like(score_map, dtype=np.uint8)
-        cv2.fillPoly(mask, box[:8].reshape((-1, 4, 2)).astype(np.int32) // 4, 1)
+        cv2.fillPoly(mask, box[:8].reshape((-1, 4, 2)).astype(np.int32) // 4, 1)#<----注意下一个细节，结果都除以4了，又，之前乘过4，诡异哈？
         boxes[i, 8] = cv2.mean(score_map, mask)[0]
-    boxes = boxes[boxes[:, 8] > box_thresh]
+    boxes = boxes[boxes[:, 8] > box_thresh] # 把那些置信度低的去掉再
 
     return boxes, timer
 
@@ -203,4 +209,5 @@ def main(argv=None):
                     cv2.imwrite(img_path, im[:, :, ::-1])
 
 if __name__ == '__main__':
+    init_flags()
     tf.app.run()

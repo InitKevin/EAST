@@ -7,7 +7,7 @@ fi
 
 if [ "$1" == "debug" ] || [ "$1" == "console" ]; then
     echo "###### 调试模式 ######"
-    python train.py \
+    python -m main.train \
     --name=east \
     --debug=True \
     --gpu_list=0 \
@@ -16,7 +16,7 @@ if [ "$1" == "debug" ] || [ "$1" == "console" ]; then
     --num_readers=1 \
     --input_size=512 \
     --validate_steps=1 \
-    --validate_batch_num=30 \
+    --validate_batch_num=1 \
     --early_stop=1 \
     --save_summary_steps=1 \
     --checkpoint_path=./model/checkpoint/ \
@@ -32,7 +32,7 @@ fi
 Date=$(date +%Y%m%d%H%M)
 echo "###### 生产模式 ######"
     nohup \
-    python train.py \
+    python -m main.train \
     --name=east \
     --debug=False \
     --gpu_list=0 \

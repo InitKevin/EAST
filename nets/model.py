@@ -10,6 +10,8 @@ from nets import resnet_v1
 
 FLAGS = tf.app.flags.FLAGS
 
+import logging
+logger = logging.getLogger(__name__)
 
 def unpool(inputs):
     return tf.image.resize_bilinear(inputs, size=[tf.shape(inputs)[1]*2,  tf.shape(inputs)[2]*2])# 使用双线性插值调整images为size
@@ -43,8 +45,6 @@ def model(images, weight_decay=1e-5, is_training=True):
     with slim.arg_scope(resnet_v1.resnet_arg_scope(weight_decay=weight_decay)):
         logits, end_points = resnet_v1.resnet_v1_50(images, is_training=is_training, scope='resnet_v1_50')
 
-    print("网络定义完毕，返回的end_points:",end_points)
-
     with tf.variable_scope('feature_fusion', values=[end_points.values]):
         batch_norm_params = {
         'decay': 0.997, # 衰减系数
@@ -63,7 +63,7 @@ def model(images, weight_decay=1e-5, is_training=True):
                  end_points['pool3'],
                  end_points['pool2']]
             for i in range(4):
-                print('Shape of f_{} {}'.format(i, f[i].shape))
+                logger.debug("输出的Resnet的位置：%s", "Shape of f_{} {}".format(i, f[i].shape))
             g = [None, None, None, None]
             h = [None, None, None, None]
             num_outputs = [None, 128, 64, 32]
@@ -80,7 +80,8 @@ def model(images, weight_decay=1e-5, is_training=True):
                     g[i] = unpool(h[i])
                 else:
                     g[i] = slim.conv2d(h[i], num_outputs[i], 3)
-                print('Shape of h_{} {}, g_{} {}'.format(i, h[i].shape, i, g[i].shape))
+
+                logger.debug("Upooling输出张量：%s","h_{} {}, g_{} {}".format(i, h[i].shape, i, g[i].shape))
 
             # here we use a slightly different way for regression part,
             # we first use a sigmoid to limit the regression range, and also
@@ -151,6 +152,9 @@ def loss(y_true_cls, y_pred_cls,
     '''
     # score交叉熵，这玩意就是论文里面说的"balanced cross-entropy loss"？
     classification_loss = dice_coefficient(y_true_cls, y_pred_cls, training_mask)
+    from utils.log_util import _p
+    classification_loss = _p(classification_loss,"classification_loss")
+
     # scale classification loss to match the iou loss part
     classification_loss *= 0.01 # 0.01是调节因子
 
@@ -171,14 +175,18 @@ def loss(y_true_cls, y_pred_cls,
     area_union = area_gt + area_pred - area_intersect
     # -log(IoU)
     L_AABB = -tf.log((area_intersect + 1.0)/(area_union + 1.0))
+    L_AABB = _p(L_AABB,"L_AABB")
 
     # 角度误差函数
     L_theta = 1 - tf.cos(theta_pred - theta_gt)
+    L_theta = _p(L_theta,"L_theta")
+
     tf.summary.scalar('geometry_AABB', tf.reduce_mean(L_AABB * y_true_cls * training_mask))
     tf.summary.scalar('geometry_theta', tf.reduce_mean(L_theta * y_true_cls * training_mask))
 
     # 加权和得到geo loss
     L_g = L_AABB + 20 * L_theta
+    L_g = _p(L_g,"L_g")
 
     # 考虑training_mask，背景像素不参与误差计算
     return tf.reduce_mean(L_g * y_true_cls * training_mask) + classification_loss

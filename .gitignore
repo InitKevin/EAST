@@ -2,10 +2,11 @@
 __pycache__/
 *.py[cod]
 *$py.class
-
+adaptor.so.dSYM/
 .DS_Store
 flush.log
 backup/
+debug/
 model/
 data/
 data_generator/font
