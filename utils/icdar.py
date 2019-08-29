@@ -306,10 +306,12 @@ def point_dist_to_line(p1, p2,      p3):
 def fit_line(p1, p2):
     # fit a line ax+by+c = 0
     # ???
-    if p1[0] == p1[1]:
+    if p1[0] == p1[1]:# 一个点的x和y一样？？？这个是啥意思？要干啥？
         return [1., 0., -p1[0]]
     else:
         # https://blog.csdn.net/vola9527/article/details/40402189
+        # 得到过两点的，deg：自由度：为多项式最高次幂，结果为多项式的各个系数
+        # 这个其实就是找到2个点的斜率和截距：k/b
         [k, b] = np.polyfit(p1, p2, deg=1)
         return [k, -1., b]
 
@@ -317,10 +319,10 @@ def fit_line(p1, p2):
 # line：[k,0/1,b]
 def line_cross_point(line1, line2):
     # line1 0= ax+by+c, compute the cross point of line1 and line2
-    if line1[0] != 0 and line1[0] == line2[0]: #k,也就是斜率一样，两条线平行啊，没交叉点啊
+    if line1[0] != 0 and line1[0] == line2[0]: #k,也就是斜率一样，两条线平行啊，没交叉点啊!!!
         logger.debug('Cross point does not exist')
         return None
-    if line1[0] == 0 and line2[0] == 0: # 都是平行于x轴，没交叉点啊
+    if line1[0] == 0 and line2[0] == 0: # 都是平行于x轴，没交叉点啊!!!
         logger.debug('Cross point does not exist')
         return None
     if line1[1] == 0: #??? 中间的一位是0的是啥含义来着？忘了
@@ -329,7 +331,7 @@ def line_cross_point(line1, line2):
     elif line2[1] == 0:
         x = -line2[2]
         y = line1[0] * x + line1[2]
-    else:
+    else: # 这个才是求那个点呢，这个是解一个2元1次方程组得到的，就是x1=x2,y1=y2，方程就是成了 y1=x1*k1+b1 ~ y1=x1*k2+b2，解出，x1,y1
         k1, _, b1 = line1
         k2, _, b2 = line2
         x = -(b1-b2)/(k1-k2) # 求解交叉点
@@ -349,6 +351,8 @@ def line_verticle(line, point):
     return verticle
 
 
+# 读这个函数前，请默默自觉的在面前的纸上画一个平行四边形，从左上角开始标4个点：p0,p1,p2,p3，顺时针
+# 我画了个，您参考可以：http://www.piginzoo.com/images/20190828/1566987583219.jpg
 def rectangle_from_parallelogram(poly):
     '''
     fit a rectangle from a parallelogram
@@ -356,21 +360,31 @@ def rectangle_from_parallelogram(poly):
     :return:
     '''
     p0, p1, p2, p3 = poly
+
+    #  np.dot(p1-p0, p3-p0)
+    # -----------------------= cos(p03~p32的夹角)
+    #   |p0-p1| * |p3-p0|
+    # 这步是算出平行四边形左下角的夹角
     angle_p0 = np.arccos(np.dot(p1-p0, p3-p0)/(np.linalg.norm(p0-p1) * np.linalg.norm(p3-p0)))
+
+    # 平行四边形左下角，小于90度
     if angle_p0 < 0.5 * np.pi:
+        #横着的一个平行四边形
         if np.linalg.norm(p0 - p1) > np.linalg.norm(p0-p3):
             # p0 and p2
             ## p0
             p2p3 = fit_line([p2[0], p3[0]], [p2[1], p3[1]])
-            p2p3_verticle = line_verticle(p2p3, p0)
+            p2p3_verticle = line_verticle(p2p3, p0)# <-----这个是核心，是过p0做了一个垂直线，参考我这张图：http://www.piginzoo.com/images/20190828/1566987583219.jpg
+                                                   # 可能你担心好好一个平行四边形，你不是给切出了一块么，其实，没事，切不到原的文字框的，你看我这张图就能明白
+            new_p3 = line_cross_point(p2p3, p2p3_verticle) # 好嘛~，终于得到我梦寐以求的矩形的左下角的点了，我梦寐以求的是这个矩形啊，new_p3只是副产品
 
-            new_p3 = line_cross_point(p2p3, p2p3_verticle)
-            ## p2
+            ############ 这里有大疑问 ??? 这个会影响回归的效果，也就是计算那个框的精确性 ###########
+            ## p2，恩，接下来搞丫🏃p2，这块我理解不了，和我的图对比，我应该去搞P1啊，如果是他这样，会切掉一部分我的文本区域啊？？？！！！（大惑）
             p0p1 = fit_line([p0[0], p1[0]], [p0[1], p1[1]])
             p0p1_verticle = line_verticle(p0p1, p2)
-
             new_p1 = line_cross_point(p0p1, p0p1_verticle)
             return np.array([p0, new_p1, p2, new_p3], dtype=np.float32)
+        # 竖着的一个平行四边形
         else:
             p1p2 = fit_line([p1[0], p2[0]], [p1[1], p2[1]])
             p1p2_verticle = line_verticle(p1p2, p0)
@@ -381,6 +395,7 @@ def rectangle_from_parallelogram(poly):
 
             new_p3 = line_cross_point(p0p3, p0p3_verticle)
             return np.array([p0, new_p1, p2, new_p3], dtype=np.float32)
+    # 平行四边形左下角，大于90度
     else:
         if np.linalg.norm(p0-p1) > np.linalg.norm(p0-p3):
             # p1 and p3
@@ -406,22 +421,30 @@ def rectangle_from_parallelogram(poly):
             new_p2 = line_cross_point(p1p2, p1p2_verticle)
             return np.array([new_p0, p1, new_p2, p3], dtype=np.float32)
 
-
+# 把矩形的4个点重新排序？！排个屁啊，前面不都已经靠min(x+y)算过谁是左上角了么？我就奇了个怪了???
+#
 def sort_rectangle(poly):
     # sort the four coordinates of the polygon, points in poly should be sorted clockwise
     # First find the lowest point
-    p_lowest = np.argmax(poly[:, 1])
+    p_lowest = np.argmax(poly[:, 1]) # y至最大的的那个点的index
+
+    # "有2个点的y一样，都是和最大的y一样"，啥意思？，就是这条边和x轴平行
     if np.count_nonzero(poly[:, 1] == poly[p_lowest, 1]) == 2:
         # 底边平行于X轴, 那么p0为左上角 - if the bottom line is parallel to x-axis, then p0 must be the upper-left corner
-        p0_index = np.argmin(np.sum(poly, axis=1))
+        p0_index = np.argmin(np.sum(poly, axis=1)) # 又是之前的伎俩，x+y最小的那个点的index[0~3]
         p1_index = (p0_index + 1) % 4
         p2_index = (p0_index + 2) % 4
         p3_index = (p0_index + 3) % 4
-        return poly[[p0_index, p1_index, p2_index, p3_index]], 0.
+        return poly[[p0_index, p1_index, p2_index, p3_index]], 0.#<----看，这个0就是我们要那个和x轴的夹角，这里当然是0啦
+    # 不是平行x轴的
     else:
         # 找到最低点右边的点 - find the point that sits right to the lowest point
-        p_lowest_right = (p_lowest - 1) % 4
-        p_lowest_left = (p_lowest + 1) % 4
+        # p_lowest是啥来着，是最靠下的那个点的坐标
+        p_lowest_right = (p_lowest - 1) % 4 # -1，就是下标-1，就是顺时针小1的那个点
+        p_lowest_left  = (p_lowest + 1) % 4 # +1，就是下标+1，就是顺时针大1的那个点
+        #   -(poly[p_lowest][1] - poly[p_lowest_right][1])
+        # --------------------------------------------------- => 就是矩形靠下边的那个线的斜率，求一下arctan，得到角度
+        #    (poly[p_lowest][0] - poly[p_lowest_right][0])
         angle = np.arctan(-(poly[p_lowest][1] - poly[p_lowest_right][1])/(poly[p_lowest][0] - poly[p_lowest_right][0]))
 
         # assert angle > 0
@@ -582,17 +605,14 @@ def generate_rbox(im_size, polys, tags):
             p2 = poly[(i + 2) % 4]
             p3 = poly[(i + 3) % 4]
 
-
-            '''
-                      
-                     
-            '''
+            # 看这张图示：http://www.piginzoo.com/images/20190828/1566987583219.jpg
             # 求拟合曲线的k和b，返回的是[k,0/1,b]
             edge          = fit_line([p0[0], p1[0]], [p0[1], p1[1]]) #左上，右上 0,1
             backward_edge = fit_line([p0[0], p3[0]], [p0[1], p3[1]]) #左上，左下 0,3
             forward_edge  = fit_line([p1[0], p2[0]], [p1[1], p2[1]]) #右上，右下 1,2
 
             # 看p2到p0p1的距离 > p3到p0p1的距离
+            # 就是看p2,p3谁离直线p0p1远，就选谁画一条平行于p0p1的先作为新矩形的边
             if point_dist_to_line(p0, p1, p2) > point_dist_to_line(p0, p1, p3):
                 # 平行线经过p2 - parallel lines through p2，对，就是这个意思
                 if edge[1] == 0:
@@ -600,6 +620,7 @@ def generate_rbox(im_size, polys, tags):
                 else:
                     # edge[0] = k,
                     # p2[1] - edge[0] * p2[0] = y - k*x = b
+                    # edge_opposite实际上就是[k,-1,b],就是那条平行线的k、b
                     edge_opposite = [edge[0], -1, p2[1] - edge[0] * p2[0]]
             else:
                 # 经过p3 - after p3
@@ -608,12 +629,16 @@ def generate_rbox(im_size, polys, tags):
                 else:
                     edge_opposite = [edge[0], -1, p3[1] - edge[0] * p3[0]]
 
-            # move forward edge
             new_p0 = p0
             new_p1 = p1
             new_p2 = p2
             new_p3 = p3
-            new_p2 = line_cross_point(forward_edge, edge_opposite)
+            new_p2 = line_cross_point(forward_edge, edge_opposite) # 不对啊，edge_opposite是那条平行线，但是forward_edge和forward_edge不一定垂直啊？？？
+
+            # 再求p0,p3平行于p1p2的距离谁远，然后做平行线，然后
+            # 求这条平行线forward_opposite和edge_opposite的交点=> new p3，以及
+            # 求这条平行线forward_opposite和edge的交点         => new p0
+            # 我勒个去，我怎么觉得我圈出来一个平行四边形，而不是一个矩形啊，颠覆了我的假设认知了
             if point_dist_to_line(p1, new_p2, p0) > point_dist_to_line(p1, new_p2, p3):
                 # across p0
                 if forward_edge[1] == 0:
@@ -626,9 +651,14 @@ def generate_rbox(im_size, polys, tags):
                     forward_opposite = [1, 0, -p3[0]]
                 else:
                     forward_opposite = [forward_edge[0], -1, p3[1] - forward_edge[0] * p3[0]]
-            new_p0 = line_cross_point(forward_opposite, edge)
-            new_p3 = line_cross_point(forward_opposite, edge_opposite)
+            new_p0 = line_cross_point(forward_opposite, edge)#  求这条平行线forward_opposite和edge的交点         => new p0
+            new_p3 = line_cross_point(forward_opposite, edge_opposite)# 求这条平行线forward_opposite和edge_opposite的交点=> new p3
+
+            # 果然是平行四边形啊，作者起了这个名字"parallelograms"，爱死你了 (^_^)
             fitted_parallelograms.append([new_p0, new_p1, new_p2, new_p3, new_p0])
+
+
+            # 上面不是画了了一个平行四边形了么？可是，用另外用一个边，也可以画出一个平行四边形啊
             # or move backward edge
             new_p0 = p0
             new_p1 = p1
@@ -650,20 +680,36 @@ def generate_rbox(im_size, polys, tags):
             new_p1 = line_cross_point(backward_opposite, edge)
             new_p2 = line_cross_point(backward_opposite, edge_opposite)
             fitted_parallelograms.append([new_p0, new_p1, new_p2, new_p3, new_p0])
+
+
+            # 然后，我得到了2个平行四边形，我勒个去，我猜到了开头（以为要通过不规则四边形找一个规律的四边形），
+            # 但是我没猜到结尾（我以为是画个矩形，却尼玛画出平行四边形，还是两个）
+
+
+        # 找那个最大的平行四边形，恩，可以理解
         areas = [Polygon(t).area for t in fitted_parallelograms]
         parallelogram = np.array(fitted_parallelograms[np.argmin(areas)][:-1], dtype=np.float32)
         # sort thie polygon
-        parallelogram_coord_sum = np.sum(parallelogram, axis=1)
-        min_coord_idx = np.argmin(parallelogram_coord_sum)
+        parallelogram_coord_sum = np.sum(parallelogram, axis=1) #axis=1，什么鬼？是把x、y加到了一起,[[1,1],[2,2]]=>[2,4]
+        min_coord_idx = np.argmin(parallelogram_coord_sum) # 实际上是找左上角，一般来讲是x+y最小的是左上角，你别跟我扯极端情况，
+                                                           # 我自己画了一下，这事不是那么绝对，但是大部分是别太变态的情况，是这样的
+        # 按照那个点当做p0，剩下的点依次编号，重新调整0-3的标号
         parallelogram = parallelogram[
-            [min_coord_idx, (min_coord_idx + 1) % 4, (min_coord_idx + 2) % 4, (min_coord_idx + 3) % 4]]
+            [min_coord_idx,
+             (min_coord_idx + 1) % 4,
+             (min_coord_idx + 2) % 4,
+             (min_coord_idx + 3) % 4]]
 
+        # 算出套在平行四边形外面的框，我觉得里面的算法有问题，等XDJM们帮着我解惑？？？
         rectange = rectangle_from_parallelogram(parallelogram)
+
+        # 调整一下p0~p3的顺序，并且算出对应的夹角，恩，是的，夹角是在这里算出来的
         rectange, rotate_angle = sort_rectangle(rectange)
 
         p0_rect, p1_rect, p2_rect, p3_rect = rectange
 
-        # xy_in_poly就是框里面的那些点的x,y坐标，应该很多
+        # xy_in_poly就是框里面的那些点的x,y坐标，应该很多，挨个算每个点到这个矩形的距离
+        # point_dist_to_line，这个函数之前用过，不多说了，最后一个参数是点，前两个参数，线上的2个点
         for y, x in xy_in_poly:
             point = np.array([x, y], dtype=np.float32)
             # top
