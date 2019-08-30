@@ -568,7 +568,7 @@ def restore_rectangle(origin, geometry):
 def generate_rbox(im_size, polys, tags):
     h, w = im_size
 
-    logger.debug("开始生成rbox数据：h,w:",h,w)
+    logger.debug("开始生成rbox数据：h:%d,w:%d",h,w)
 
     # 初始化3个蒙版，都是512x512
     poly_mask = np.zeros((h, w), dtype=np.uint8)
