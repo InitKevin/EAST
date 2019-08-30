@@ -765,7 +765,7 @@ def generator(input_size=512,
     image_list = np.array(get_images(data_dir))
     # index：总样本数
     index = np.arange(0, image_list.shape[0])
-    # pdb.set_trace()
+    # pdb.set_trace(x`)
     while True:
         np.random.shuffle(index)
         images = []
@@ -785,7 +785,7 @@ def generator(input_size=512,
 
                 # 读取标签txt
                 label_name = os.path.splitext(os.path.basename(im_fn))[0]
-                label_dir = os.path.join(FLAGS.training_data_path, "labels")
+                label_dir = os.path.join(data_dir, "labels")
                 txt_fn = os.path.join(label_dir,label_name+".txt")
 
 
