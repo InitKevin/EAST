@@ -182,6 +182,11 @@ def loss(y_true_cls, y_pred_cls,
     d1_gt,   d2_gt,   d3_gt,   d4_gt,   theta_gt   = tf.split(value=y_true_geo, num_or_size_splits=5, axis=3)
     d1_pred, d2_pred, d3_pred, d4_pred, theta_pred = tf.split(value=y_pred_geo, num_or_size_splits=5, axis=3)
 
+    from utils.log_util import _p_shape
+
+    d1_gt = _p_shape(d1_gt,"d1_gt")
+    d1_pred = _p_shape(d1_gt, "d1_pred")
+
     # 为何是+，噢，是因为，预测和标注的，不是坐标，而是宽高
     area_gt   = (d1_gt   + d3_gt  ) * (d2_gt   + d4_gt  )
     area_pred = (d1_pred + d3_pred) * (d2_pred + d4_pred)
