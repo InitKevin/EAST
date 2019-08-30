@@ -86,6 +86,10 @@ def model(images, weight_decay=1e-5, is_training=True):
 
                 logger.debug("Upooling输出张量：%s","h_{} {}, g_{} {}".format(i, h[i].shape, i, g[i].shape))
 
+            from utils.log_util import _p_shape
+
+            g[3] = _p_shape(g[3],"EAST网络做卷积输出前的shape")
+
             # here we use a slightly different way for regression part,
             # we first use a sigmoid to limit the regression range, and also
             # this is do with the angle map
