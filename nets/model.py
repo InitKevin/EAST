@@ -68,13 +68,16 @@ def model(images, weight_decay=1e-5, is_training=True):
             h = [None, None, None, None]
             num_outputs = [None, 128, 64, 32]
             for i in range(4):
+
                 # 由网络结构图可知h0=f0
                 if i == 0:
                     h[i] = f[i]
                 # 对其他的hi有，hi = conv (concat (fi, unpool (hi-1) ) )
                 else:
+                    # 这个是论文里面要uppoolling后，又做一个1x1x64，和3x3x64的卷积，恩，这两个操作，不会改变图像大小，别担心
                     c1_1 = slim.conv2d(tf.concat([g[i-1], f[i]], axis=-1), num_outputs[i], 1)
                     h[i] = slim.conv2d(c1_1, num_outputs[i], 3)
+
                 # 由网络结构可知，对于h0，h1，h2都要先经过unpool在与fi进行叠加
                 if i <= 2:
                     g[i] = unpool(h[i])
@@ -104,7 +107,15 @@ def model(images, weight_decay=1e-5, is_training=True):
 
             # 乖乖：都是通过卷积得到的啊，最后得到了啥：F_score（1张）、geo_map（4张）、angle_map（1张），恩，张就是指图，跟原图带下一样的伪图
 
+    model_summary()
+
     return F_score, F_geometry #1+5channel的图像
+
+
+def model_summary():
+    model_vars = tf.trainable_variables()
+    slim.model_analyzer.analyze_vars(model_vars, print_info=True)
+
 
 '''
     define the loss used for training, contraning two part,

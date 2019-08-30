@@ -92,8 +92,11 @@ def detect(score_map, geo_map, timer, score_map_thresh=0.8, box_thresh=0.1, nms_
     # restore
     start = time.time()
     # ::-1 把数组倒过来
-    text_box_restored = restore_rectangle(xy_text[:, ::-1]*4,#为何最表要乘以4？
-                                          geo_map[           #把这些点对应的值拿出来，geo_map:(h, w, 5)
+    # 为何最表要乘以4？ !!!明白了！因为按照那个预测，得到的只是原图1/4大小的坐标，所以，要乘以4
+    # 可是为何是1/4，这就要从resnet50说起，我们取的是conv_2x/是conv_3x/是conv_4x/是conv_5x的输出，注意conv_2x，他输出的时候，大小已经是原图的1/4啦。
+    # 参考这个：https://www.cnblogs.com/ymjyqsx/p/7587033.html
+    text_box_restored = restore_rectangle(xy_text[:, ::-1]*4,# 为何要乘以4，上面解释了
+                                          geo_map[           # 把这些点对应的值拿出来，geo_map:(h, w, 5)
                                             xy_text[:, 0],
                                             xy_text[:, 1],
                                             :

@@ -229,7 +229,14 @@ def resnet_v1(inputs,
 
 resnet_v1.default_image_size = 224
 
-
+# 对于resnet我想说两句，
+# Resnet50，就是针对50层，但是太多了，所以逻辑上又划分了5个大层（最后的那个avg pool不算）
+# 每大层的第一个的卷基层的stride=2，这样就让feature map变小一倍，但是其他的卷基层stride=1，也就是feature map不变
+# 然后你就能看懂这种图了：https://img-blog.csdn.net/20180319160714266?watermark/2/text/Ly9ibG9nLmNzZG4ubmV0L2ppYW5ncGVuZzU5/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70
+# 另外就是每个大层，他们都命名为conv1~conv5，每个里面都是3个卷积核进行重复，但是每层重复的次数不一样，具体参考图
+# 还有就是何凯明大神设计的那个短路机制，这里就不多说。
+# 再贴一张更详细的图：https://blog.csdn.net/nima1994/article/details/82686132
+# 在说一下，每一个大层conv_x，分别是1，9，12，18，9个，每个里面都只有第一个stride=2。
 def resnet_v1_50(inputs,
                  num_classes=None,
                  is_training=True,
@@ -241,13 +248,13 @@ def resnet_v1_50(inputs,
     """ResNet-50 model of [1]. See resnet_v1() for arg and return description."""
     blocks = [
         resnet_utils.Block(
-            'block1', bottleneck, [(256, 64, 1)] * 2 + [(256, 64, 2)]),
+            'block1', bottleneck, [(256, 64, 1)] * 2 + [(256, 64, 2)]),     # 3 => conv2_x (对应上图），出来的是原图的1/4
         resnet_utils.Block(
-            'block2', bottleneck, [(512, 128, 1)] * 3 + [(512, 128, 2)]),
+            'block2', bottleneck, [(512, 128, 1)] * 3 + [(512, 128, 2)]),   # 4 => conv3_x, 出来的是原图的1/8
         resnet_utils.Block(
-            'block3', bottleneck, [(1024, 256, 1)] * 5 + [(1024, 256, 2)]),
+            'block3', bottleneck, [(1024, 256, 1)] * 5 + [(1024, 256, 2)]), # 6 => conv4_x, 出来的是原图的1/16
         resnet_utils.Block(
-            'block4', bottleneck, [(2048, 512, 1)] * 3)
+            'block4', bottleneck, [(2048, 512, 1)] * 3)                     # 3 => conv5_x, 出来的是原图的1/32
     ]
     return resnet_v1(inputs, blocks, num_classes, is_training,
                      global_pool=global_pool, output_stride=output_stride,

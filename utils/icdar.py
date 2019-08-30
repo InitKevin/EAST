@@ -556,6 +556,7 @@ def restore_rectangle_rbox(origin, geometry):
     else:
         new_p_1 = np.zeros((0, 4, 2))
 
+    # 返回的是4个点，[N,4]，矩形的4个点
     return np.concatenate([new_p_0, new_p_1])
 
 
@@ -567,7 +568,7 @@ def restore_rectangle(origin, geometry):
 def generate_rbox(im_size, polys, tags):
     h, w = im_size
 
-    logger.debug("开始生成rbox数据")
+    logger.debug("开始生成rbox数据：h,w:",h,w)
 
     # 初始化3个蒙版，都是512x512
     poly_mask = np.zeros((h, w), dtype=np.uint8)

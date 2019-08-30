@@ -49,11 +49,11 @@ def validate(sess,batch_num,batch_size, generator,f_score, f_geometry,input_imag
         # 取出一个batch的数据
         images,labels = next(generator)
 
-        print("[验证] 加载了一张图片，准备训练...")
+        logger.debug("[验证] 加载了一张图片(%r)，准备训练...",np.array(images).shape)
 
         scores,geometrys = sess.run([f_score, f_geometry],feed_dict={input_images: images})
 
-        print("scores/geometrys shape:",scores.shape,geometrys.shape)
+        logger.debug("[验证] 预测的scores/geometrys:",scores.shape,geometrys.shape)
 
         # 注意这个detect是找出一张图中的框们
         for i in range(scores.shape[0]):

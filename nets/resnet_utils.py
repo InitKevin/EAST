@@ -39,7 +39,9 @@ implementation is more memory efficient.
 
 import collections
 import tensorflow as tf
+import logging
 
+logger  = logging.getLogger(__name__)
 slim = tf.contrib.slim
 
 
@@ -207,7 +209,7 @@ def stack_blocks_dense(net, blocks, output_stride=None,
                                             stride=unit_stride,
                                             rate=1)
                         current_stride *= unit_stride
-            print(sc.name, net.shape)
+            logger.debug("%s,%r",sc.name, net.shape)
             net = slim.utils.collect_named_outputs(outputs_collections, sc.name, net)
 
     if output_stride is not None and current_stride != output_stride:
