@@ -901,6 +901,15 @@ def generator(input_size=512,
 
                     images.append(im[:, :, ::-1].astype(np.float32))
                     image_names.append(im_fn)
+
+                    #!!! 这里藏着一个惊天大秘密：( >﹏<。)
+                    # geo_map[::4, ::4, :] => 表示隔4个采样一个点，把图从512x512=>128x128
+                    # 你知道他为何这么做么？（坏笑）是因为他要和resnet对上，resnet取的是conv2,conv3,conv4,conv5，而conv2其实不是原图，而是原图的1/4，
+                    # 所以，我们最终uppooling后，最后一个合并的是conv2，得到就是原图(512)的1/4(128)，这样，你的样本也要变成原有的1/4，
+                    # Resnet50参考此图：https://www.cnblogs.com/ymjyqsx/p/7587033.html
+                    # 恩，通过这个采样，不就达到目的了么？
+                    # 这个细节，细思极恐，一不小心就被作者忽悠了
+                    # 所以，这里要记着，EAST预测出来的东西，坐标都是原图1/4的，我回头去看看推断的时候，怎么处理这个问题？
                     score_maps.append(score_map[::4, ::4, np.newaxis].astype(np.float32))
                     geo_maps.append(geo_map[::4, ::4, :].astype(np.float32))
                     training_masks.append(training_mask[::4, ::4, np.newaxis].astype(np.float32))

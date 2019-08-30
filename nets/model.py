@@ -183,7 +183,6 @@ def loss(y_true_cls, y_pred_cls,
     d1_pred, d2_pred, d3_pred, d4_pred, theta_pred = tf.split(value=y_pred_geo, num_or_size_splits=5, axis=3)
 
     from utils.log_util import _p_shape
-
     d1_gt = _p_shape(d1_gt,"d1_gt")
     d1_pred = _p_shape(d1_gt, "d1_pred")
 
