@@ -88,6 +88,8 @@ def model(images, weight_decay=1e-5, is_training=True):
 
             from utils.log_util import _p_shape
 
+            # EAST网络做卷积输出前的shape[1 128 128 32]，看，是1/4，我的猜测是对的！！！yeah！
+            # 但是，无所谓，最终人家预测出来的，是对原图来说的，所以也不用调整标签的坐标都除以4之类的骚操作（对么？先怀疑一下这句话，怀疑一下自己）
             g[3] = _p_shape(g[3],"EAST网络做卷积输出前的shape")
 
             # here we use a slightly different way for regression part,
@@ -110,6 +112,9 @@ def model(images, weight_decay=1e-5, is_training=True):
             F_geometry = tf.concat([geo_map, angle_map], axis=-1)
 
             # 乖乖：都是通过卷积得到的啊，最后得到了啥：F_score（1张）、geo_map（4张）、angle_map（1张），恩，张就是指图，跟原图带下一样的伪图
+            F_score = _p_shape(F_score, "神经网络输出：F_score")
+            F_geometry = _p_shape(F_geometry, "神经网络输出：F_geometry")
+
 
     model_summary()
 
