@@ -909,8 +909,12 @@ def generator(input_size=512,
                 # 凑过了batch_size，就被这批数据yield出去
                 # 你要理解哈，最终的是啥，是32个(32假设是批次），32个images,score_maps,geo_maps.....
                 if len(images) == batch_size:
-                    logger.debug("[%s]返回一个批次数据：%d张",name,batch_size)
-                    yield images, image_names, score_maps, geo_maps, training_masks
+                    logger.debug("[%s]返回一个批次数据：%d张", name, batch_size)
+                    if type == "validate":
+                        yield images, labels
+                    else:
+                        yield images, image_names, score_maps, geo_maps, training_masks
+
                     images = []
                     labels = []
                     image_names = []
