@@ -156,7 +156,7 @@ def many_to_one_match(detNum,conf,gtRectMat,detRectMat,recallMat,precisionMat):
 # xmax是右侧的x，xmin是左侧的x，ymax是下边的y，ymin是上边的y
 # 求出来的是a、b两个矩形，相交的面积
 def area(a, b):
-    #
+    logger.debug("a,b:%r,%r",a.shape,b.shape)
     dx = min(a.xmax, b.xmax) - max(a.xmin, b.xmin) + 1
     dy = min(a.ymax, b.ymax) - max(a.ymin, b.ymin) + 1
     if (dx >= 0) and (dy >= 0):
