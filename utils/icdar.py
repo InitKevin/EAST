@@ -532,12 +532,16 @@ def restore_rectangle_rbox(origin, geometry):
         logger.debug("rotate_matrix_y:%r", rotate_matrix_y.shape)
         rotate_matrix_y = np.repeat(rotate_matrix_y, 5, axis=1).reshape(-1, 2, 5).transpose((0, 2, 1))
         logger.debug("rotate_matrix_y:%r", rotate_matrix_y.shape)
-        # 旋转
+
+        # 旋转,p是喜欢旋转矩阵，
         p_rotate_x = np.sum(rotate_matrix_x * p, axis=2)[:, :, np.newaxis]  # N*5*1
         p_rotate_y = np.sum(rotate_matrix_y * p, axis=2)[:, :, np.newaxis]  # N*5*1
-        logger.debug("p_rotate_x,p_rotate_y:%r,%r", p_rotate_x.shape, p_rotate_y.shape)
-        p_rotate = np.concatenate([p_rotate_x, p_rotate_y], axis=2)  # N*5*2
-        logger.debug("p_rotate,%r", p_rotate.shape)
+        logger.debug("rotate_matrix_x * p:%r",rotate_matrix_x * p.shape)
+        logger.debug("np.sum(rotate_matrix_x * p, axis=2):%r",np.sum(rotate_matrix_x * p, axis=2).shape)
+        logger.debug("np.sum(rotate_matrix_x * p, axis=2)[:, :, np.newaxis]:%r",np.sum(rotate_matrix_x * p, axis=2)[:, :, np.newaxis].shape)
+        logger.debug("rotate_matrix_x * p:%rx%r", rotate_matrix_x.shape, p.shape)
+        p_rotate = np.concatenate([p_rotate_x, p_rotate_y], axis=2)         # N*5*2
+        logger.debug("p_rotate_x,p_rotate_y:%r,%r=>p_rotate,%r",p_rotate_x.shape, p_rotate_y.shape,p_rotate.shape)
 
         p3_in_origin = origin_0 - p_rotate[:, 4, :] # origin_0[N,2]
         new_p0 = p_rotate[:, 0, :] + p3_in_origin  # N*2
