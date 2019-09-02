@@ -3,7 +3,7 @@ import time
 import os
 import numpy as np
 import tensorflow as tf
-
+from utils import data_util
 import lanms
 import model
 import logging
@@ -36,39 +36,6 @@ def get_images():
     print('Find {} images'.format(len(files)))
     return files
 
-# 调整宽高为32的倍数，宽高不能大于2400
-def resize_image(im, max_side_len=2400):
-    '''
-    resize image to a size multiple of 32 which is required by the network
-    :param im: the resized image
-    :param max_side_len: limit of max image size to avoid out of memory in gpu
-    :return: the resized image and the resize ratio
-    '''
-    h, w, _ = im.shape
-
-    resize_w = w
-    resize_h = h
-
-    # limit the max side
-    if max(resize_h, resize_w) > max_side_len:
-        ratio = float(max_side_len) / resize_h \
-            if resize_h > resize_w \
-            else float(max_side_len) / resize_w
-    else:
-        ratio = 1.
-    resize_h = int(resize_h * ratio)
-    resize_w = int(resize_w * ratio)
-
-    resize_h = resize_h if resize_h % 32 == 0 else (resize_h // 32 - 1) * 32
-    resize_w = resize_w if resize_w % 32 == 0 else (resize_w // 32 - 1) * 32
-    resize_h = max(32, resize_h)
-    resize_w = max(32, resize_w)
-    im = cv2.resize(im, (int(resize_w), int(resize_h)))
-
-    ratio_h = resize_h / float(h)
-    ratio_w = resize_w / float(w)
-
-    return im, (ratio_h, ratio_w)
 
 
 def detect(score_map, geo_map, timer, score_map_thresh=0.8, box_thresh=0.1, nms_thres=0.2):
@@ -171,7 +138,8 @@ def main(argv=None):
                 im = cv2.imread(im_fn)[:, :, ::-1]
                 start_time = time.time()
                 # 调整图像为32的倍数，但是基本上保持原图大小
-                im_resized, (ratio_h, ratio_w) = resize_image(im)
+
+                im_resized, (ratio_h, ratio_w) = data_util.resize_image(im)
 
                 timer = {'net': 0, 'restore': 0, 'nms': 0}
                 start = time.time()

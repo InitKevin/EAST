@@ -7,6 +7,7 @@ import numpy as np
 import threading
 import multiprocessing
 import logging
+import cv2
 
 logger = logging.getLogger(__name__)
 
@@ -136,3 +137,43 @@ class GeneratorEnqueuer():
                     yield inputs
             else:
                 time.sleep(self.wait_time)
+
+
+
+# 调整宽高为32的倍数，宽高不能大于2400
+def resize_image(im, max_side_len=2400):
+    '''
+    resize image to a size multiple of 32 which is required by the network
+    :param im: the resized image
+    :param max_side_len: limit of max image size to avoid out of memory in gpu
+    :return: the resized image and the resize ratio
+    '''
+    h, w, _ = im.shape
+
+    resize_w = w
+    resize_h = h
+
+    # limit the max side
+    if max(resize_h, resize_w) > max_side_len:
+        logger.debug("图像太大了（大约%d），需要resize[h=%d,w=%d]",max_side_len,h,w)
+        ratio = float(max_side_len) / resize_h \
+            if resize_h > resize_w \
+            else float(max_side_len) / resize_w
+    else:
+        ratio = 1.
+    resize_h = int(resize_h * ratio)
+    resize_w = int(resize_w * ratio)
+
+    resize_h = resize_h if resize_h % 32 == 0 else (resize_h // 32 - 1) * 32
+    resize_w = resize_w if resize_w % 32 == 0 else (resize_w // 32 - 1) * 32
+    resize_h = max(32, resize_h)
+    resize_w = max(32, resize_w)
+
+    new_size= (int(resize_w), int(resize_h))
+    im = cv2.resize(im,new_size )
+    logger.debug("图像[W,H] Resize，从%r=>%r",(w,h),new_size)
+
+    ratio_h = resize_h / float(h)
+    ratio_w = resize_w / float(w)
+
+    return im, (ratio_h, ratio_w)

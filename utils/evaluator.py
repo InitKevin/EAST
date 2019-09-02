@@ -18,6 +18,7 @@ import importlib,math
 import numpy as np
 import logging
 from main.eval import detect
+from utils import data_util
 
 logger = logging.getLogger("Evaluator")
 Point = namedtuple('Point', 'x y')
@@ -49,9 +50,11 @@ def validate(sess,batch_num,batch_size, generator,f_score, f_geometry,input_imag
         # 取出一个batch的数据
         images,labels = next(generator)
 
-        logger.debug("[验证] 加载了一张图片(%r)，准备训练...",np.array(images).shape)
+        resize_images = [data_util.resize_image(img) for img in images]
 
-        scores,geometrys = sess.run([f_score, f_geometry],feed_dict={input_images: images})
+        logger.debug("[验证] 加载了一张图片(%r)，准备训练...",np.array(resize_images).shape)
+
+        scores,geometrys = sess.run([f_score, f_geometry],feed_dict={input_images: resize_images})
 
         logger.debug("[验证] 预测的scores/geometrys:",scores.shape,geometrys.shape)
 
@@ -68,14 +71,17 @@ def validate(sess,batch_num,batch_size, generator,f_score, f_geometry,input_imag
             recall_sum += metrics['recall']
             f1_sum += metrics['hmean']
 
-            logger.debug("图片%s的探测结果的精确度:%f,召回率:%f,F1:%f", image_name,
-                         metrics['precision'], metrics['recall'], metrics['hmean'])
+            logger.debug("这个批次的图片#%d的探测结果的精确度:%f,召回率:%f,F1:%f",
+                         i,
+                         metrics['precision'],
+                         metrics['recall'],
+                         metrics['hmean'])
 
     precision_mean = precision_sum / batch_num * batch_size
     recall_mean = recall_sum / batch_num * batch_size
     f1_mean = f1_sum / batch_num * batch_size
 
-    logger.debug("这批%d个图片的平均的精确度:%f,召回率:%f,F1:%f",batch_num, precision_mean, recall_mean, f1_mean)
+    logger.debug("所有批次%d的图片总的平均的精确度:%f,召回率:%f,F1:%f",batch_num, precision_mean, recall_mean, f1_mean)
 
     return precision_mean, recall_mean, f1_mean
 
