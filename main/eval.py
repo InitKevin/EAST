@@ -54,15 +54,10 @@ def detect(score_map, geo_map, timer, score_map_thresh=0.8, box_thresh=0.1, nms_
         geo_map = geo_map[0, :, :, ] # (h, w, 5)
     # filter the score map，返回的是xy_text二维坐标数据
     xy_text = np.argwhere(score_map > score_map_thresh) #返回大于阈值的坐标，(x,y)二维的坐标,score map [400 288]
-    logger.debug("score_map,xy_text:%r,%r", score_map.shape, xy_text.shape)
-    logger.debug(xy_text)
     xy_text = xy_text[:,:2] # 从[x,y,0]=>[x,y], [N,3]=>[N,2]
-    logger.debug("xy_text:%r", xy_text.shape)
-    logger.debug(xy_text)
     # sort the text boxes via the y axis，argsort函数返回的是数组值从小到大的索引值
     xy_text = xy_text[np.argsort(xy_text[:,0])] #返回还是二维坐标数据组，只不过是按照x排序了，argsort是从小到大
     logger.debug("xy_text:%r",xy_text.shape)
-    logger.debug(xy_text)
 
     # restore
     start = time.time()
@@ -81,6 +76,8 @@ def detect(score_map, geo_map, timer, score_map_thresh=0.8, box_thresh=0.1, nms_
     # 返回的box是 8个点的坐标值+1个是否文字的置信度
     boxes = np.zeros((text_box_restored.shape[0], 9), dtype=np.float32)
     boxes[:, :8] = text_box_restored.reshape((-1, 8))
+    print(score_map.shape)
+    print(boxes[:, 8].shape)
     boxes[:, 8] = score_map[xy_text[:, 0], xy_text[:, 1]]
     timer['restore'] = time.time() - start
     # nms part
