@@ -470,8 +470,8 @@ def sort_rectangle(poly):
 # geometry [h,w,5]  5张原图大小的"怪怪"图，你懂得
 def restore_rectangle_rbox(origin, geometry):
 
-    d = geometry[:, :4]    #geo_map:(h, w, 5)，[:4]是只切了前4个, d => [h,w,4]
-    angle = geometry[:, 4] #geo_map:(h, w, 5)，[4]是第5个        angle=> [h,w,1]
+    d = geometry[:, :4]    #geo_map:(h, w, 5)，[:4]是只切了前4个, d => [h*w,4]
+    angle = geometry[:, 4] #geo_map:(h, w, 5)，[4]是第5个        angle=> [h*w,1]
 
     # for angle > 0
     # origin<===xy_text = np.argwhere(score_map > score_map_thresh)，而且是排过序的
@@ -480,6 +480,11 @@ def restore_rectangle_rbox(origin, geometry):
     d_0 = d[angle >= 0]           # 那些点的距离们
     angle_0 = angle[angle >= 0]   # 那些点的角度们
 
+    # d: (6812, 4)
+    # angle: (6812,)
+    # origin_0: (3624, 3)
+    # d_0: (3624, 4)
+    # angle_0: (3624,)
     logger.debug("d:%r", d.shape)
     logger.debug("angle:%r", angle.shape)
     logger.debug("origin_0:%r",origin_0.shape)
@@ -489,11 +494,12 @@ def restore_rectangle_rbox(origin, geometry):
     if origin_0.shape[0] > 0:
         # 什么鬼？这么复杂
         # 增加1个新维度[10,h,w]
+        #p.shape=>(10, 3624)
         p = np.array([np.zeros(d_0.shape[0]),
-                      -d_0[:, 0] - d_0[:, 2], # d维度是[h,w,4],d_0[:, 0]实际上是降维了[h,w]，或者说[h,w,1]，实际上得到是矩形的高
-                       d_0[:, 1] + d_0[:, 3], # 矩形的宽,维度是[h,w]
-                      -d_0[:, 0] - d_0[:, 2], # 矩形的宽负数,维度是[h,w]
-                       d_0[:, 1] + d_0[:, 3], # 矩形的宽，维度是[h,w]
+                      -d_0[:, 0] - d_0[:, 2], # d维度是[h*w,4],d_0[:, 0]实际上是降维了[h*w]，或者说[h*w,1]，实际上得到是矩形的高
+                       d_0[:, 1] + d_0[:, 3], # 矩形的宽,维度是[h*w]
+                      -d_0[:, 0] - d_0[:, 2], # 矩形的宽负数,维度是[h*w]
+                       d_0[:, 1] + d_0[:, 3], # 矩形的宽，维度是[h*w]
                       np.zeros(d_0.shape[0]),
                       np.zeros(d_0.shape[0]),
                       np.zeros(d_0.shape[0]),
@@ -504,22 +510,30 @@ def restore_rectangle_rbox(origin, geometry):
         logger.debug("一共多少个前景点：d_0.shape[0]:%r",d_0.shape[0])
         logger.debug("每个点的-x-y:-d_0[:, 0] - d_0[:, 2].shape:%r", (- d_0[:, 0] - d_0[:, 2]).shape)
         logger.debug("得到的p的shape:%r",p.shape)
-        logger.debug("得到的p:%r", p)
+        # logger.debug("得到的p:%r", p)
 
-
+        #[10,3624]=>[3642,5,2]
         p = p.transpose((1, 0)).reshape((-1, 5, 2))  # N*5*2
-        logger.debug("p的转置+reshape(-1,5,2):%r", p)
+        logger.debug("p的转置+reshape(-1,5,2):%r", p.shape)
 
-        # 旋转矩阵
+        # 旋转矩阵：https://blog.csdn.net/csxiaoshui/article/details/65446125
+        # [
+        #     [x']    [cos,-sin,0]   [x]
+        #     [y']  = [sin, cos,0] * [y]
+        #     [1 ]    [0  ,    ,1]   [1]
+        # ]
+        # 先凑上述的矩阵，为何要重复5次？？？
         rotate_matrix_x = np.array([np.cos(angle_0), np.sin(angle_0)]).transpose((1, 0))
         rotate_matrix_x = np.repeat(rotate_matrix_x, 5, axis=1).reshape(-1, 2, 5).transpose((0, 2, 1))  # N*5*2
         rotate_matrix_y = np.array([-np.sin(angle_0), np.cos(angle_0)]).transpose((1, 0))
         rotate_matrix_y = np.repeat(rotate_matrix_y, 5, axis=1).reshape(-1, 2, 5).transpose((0, 2, 1))
-
+        logger.debug("rotate_matrix_x,rotate_matrix_y:%r,%r",rotate_matrix_x.shape,rotate_matrix_y.shape)
         # 旋转
         p_rotate_x = np.sum(rotate_matrix_x * p, axis=2)[:, :, np.newaxis]  # N*5*1
         p_rotate_y = np.sum(rotate_matrix_y * p, axis=2)[:, :, np.newaxis]  # N*5*1
+        logger.debug("p_rotate_x,p_rotate_y:%r,%r", p_rotate_x.shape, p_rotate_y.shape)
         p_rotate = np.concatenate([p_rotate_x, p_rotate_y], axis=2)  # N*5*2
+        logger.debug("p_rotate,%r", p_rotate.shape)
 
         p3_in_origin = origin_0 - p_rotate[:, 4, :] # origin_0[N,2]
         new_p0 = p_rotate[:, 0, :] + p3_in_origin  # N*2
