@@ -60,7 +60,7 @@ def create_summary_writer():
     if not os.path.exists(FLAGS.tboard_dir): os.makedirs(FLAGS.tboard_dir)
     today = datetime.datetime.now().strftime("%Y%m%d-%H%M")
     summary_dir = os.path.join(FLAGS.tboard_dir,today)
-    summary_writer = tf.summary.FileWriter(FLAGS.summary_path, tf.get_default_graph())
+    summary_writer = tf.summary.FileWriter(summary_dir, tf.get_default_graph())
     return summary_writer
 
 
