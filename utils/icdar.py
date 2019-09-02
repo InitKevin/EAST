@@ -67,6 +67,13 @@ def polygon_area(poly):
     '''
     # 为何这么诡异的公式呢，参考这个：https://www.cnblogs.com/zzcpy/p/10524348.html
     # Area = (1/2) * |x1y2 + x2y3 + x3y4 + x4y1 - x2y1 - x3y2 - x4y3 - x1y4 |
+    #
+    # ============= 换一个思路 ===============
+    # 其实就是个梯形计算公式
+    # * 纵坐标看成底
+    # * 横坐标看成高
+    # 面积S1 = 就是 （上底 + 下底）* 高 * 1/2
+    # 最后再 +、- 得到最终poly面积
     edge = [
         (poly[1][0] - poly[0][0]) * (poly[1][1] + poly[0][1]), # (x1-x2)*(y1+y0)
         (poly[2][0] - poly[1][0]) * (poly[2][1] + poly[1][1]), # (x2-x1)*(y2+y1)
@@ -278,7 +285,7 @@ def shrink_poly(poly, r):
 # p3 到p1-p2组成的直线的距离
 def point_dist_to_line(p1, p2,      p3):
     # compute the distance from p3 to p1-p2
-    # cross:向量积，数学中又称外积、叉积,运算结果是一个向量而不是一个标量。并且两个向量的叉积与这两个向量和垂直。模长是|a|*|b|*cos夹角，方向上右手法则
+    # cross:向量积，数学中又称外积、叉积,运算结果是一个向量而不是一个标量。并且两个向量的叉积与这两个向量和垂直。模长是|a|*|b|*sin夹角，方向上右手法则
     # 叉乘的二维的一个含义是，"在二维中，两个向量的向量积的模的绝对值等于由这两天向量组成的平行四边形的面积"
     # np.linalg.norm(np.cross(p2 - p1, p1 - p3)) 就是p1p3,p1p2夹成的平行四边形的面积
     # 除以
@@ -287,11 +294,17 @@ def point_dist_to_line(p1, p2,      p3):
     # 你可以自己画一个平行四边形，面积是 底x高，现在面积已知，底就是p1p2，那高，就是p3到p1p2的距离
     return np.linalg.norm(np.cross(p2 - p1, p1 - p3)) / np.linalg.norm(p2 - p1)
 
-# 求拟合曲线的k和b
+# 根据p1和p2来获取拟合的曲线 ax+by+c=0, 自己没看懂，还是田老师的帮助下才弄清楚
+# param:
+#    p1 -- x坐标集合
+#    p2 -- y坐标集合
+#    如果有两个点（x1, y1）和(x2, y2)，那么p1=[x1, x2], p2=[y1, y2]
+# return:
+#    [a, b, c]
 def fit_line(p1, p2):
     # fit a line ax+by+c = 0
-    # ???
-    if p1[0] == p1[1]:# 一个点的x和y一样？？？这个是啥意思？要干啥？
+    if p1[0] == p1[1]:
+        # 两个点的x坐标相同，说明该直行是垂直于X轴
         return [1., 0., -p1[0]]
     else:
         # https://blog.csdn.net/vola9527/article/details/40402189
