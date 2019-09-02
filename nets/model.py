@@ -3,14 +3,12 @@ import tensorflow as tf
 import numpy as np
 
 from tensorflow.contrib import slim
-
-tf.app.flags.DEFINE_integer('text_scale', 512, '')
-
+import logging
+from utils.log_util import _p_shape
 from nets import resnet_v1
 
+tf.app.flags.DEFINE_integer('text_scale', 512, '')
 FLAGS = tf.app.flags.FLAGS
-
-import logging
 logger = logging.getLogger(__name__)
 
 def unpool(inputs):
@@ -74,23 +72,34 @@ def model(images, weight_decay=1e-5, is_training=True):
                     h[i] = f[i]
                 # 对其他的hi有，hi = conv (concat (fi, unpool (hi-1) ) )
                 else:
+                    g[i-1] = _p_shape(g[i-1], "EAST网络第{}层合并层g[i-1]shape：".format(i-1))
+                    f[i]   = _p_shape(f[i], "EAST网络Resnet第{}层f[i]输出shape：".format(i))
+
                     # 这个是论文里面要uppoolling后，又做一个1x1x64，和3x3x64的卷积，恩，这两个操作，不会改变图像大小，别担心
-                    c1_1 = slim.conv2d(tf.concat([g[i-1], f[i]], axis=-1), num_outputs[i], 1)
+                    concat1 = tf.concat([g[i - 1], f[i]], axis=-1)
+                    concat1 = _p_shape(concat1, "EAST网络第{}层concat后，g+f合并输出shape：".format(i))
+
+                    c1_1 = slim.conv2d(concat1,  num_outputs[i], 1)
+                    c1_1 = _p_shape(c1_1, "EAST网络第{}1x1卷积后输出shape：".format(i))
+
                     h[i] = slim.conv2d(c1_1, num_outputs[i], 3)
+                    h[i] = _p_shape(h[i], "EAST网络第{}3x3卷积后输出shape：".format(i))
 
                 # 由网络结构可知，对于h0，h1，h2都要先经过unpool在与fi进行叠加
                 if i <= 2:
+                    h[i] = _p_shape(h[i], "EAST网络，第{}层上卷积前shape：".format(i))
                     g[i] = unpool(h[i])
+                    g[i] = _p_shape(g[i], "EAST网络，第{}层上卷积前shape：".format(i))
                 else:
                     g[i] = slim.conv2d(h[i], num_outputs[i], 3)
 
+                h[i] = _p_shape(h[i], "EAST网络，当前{}层最终结果shape：".format(i))
                 logger.debug("Upooling输出张量：%s","h_{} {}, g_{} {}".format(i, h[i].shape, i, g[i].shape))
 
-            from utils.log_util import _p_shape
 
             # EAST网络做卷积输出前的shape[1 128 128 32]，看，是1/4，我的猜测是对的！！！yeah！
             # 但是，无所谓，最终人家预测出来的，是对原图来说的，所以也不用调整标签的坐标都除以4之类的骚操作（对么？先怀疑一下这句话，怀疑一下自己）
-            g[3] = _p_shape(g[3],"EAST网络做卷积输出前的shape")
+            g[3] = _p_shape(g[3],"EAST网络做卷积输出前g[3]合并层的shape")
 
             # here we use a slightly different way for regression part,
             # we first use a sigmoid to limit the regression range, and also
