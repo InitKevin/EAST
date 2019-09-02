@@ -466,7 +466,7 @@ def sort_rectangle(poly):
 
 # 这个函数只有推断的时候用，训练不用
 # 主要核心是调用lanms，来算出需要的框
-# origin   [N,2]    放着前景的坐标，x从小到大
+# origin   [N,2]    放着前景的2维坐标，x从小到大
 # geometry [h,w,5]  5张原图大小的"怪怪"图，你懂得
 def restore_rectangle_rbox(origin, geometry):
 
@@ -480,11 +480,17 @@ def restore_rectangle_rbox(origin, geometry):
     d_0 = d[angle >= 0]           # 那些点的距离们
     angle_0 = angle[angle >= 0]   # 那些点的角度们
 
+    logger.debug("d:%r", d.shape)
+    logger.debug("angle:%r", angle.shape)
+    logger.debug("origin_0:%r",origin_0.shape)
+    logger.debug("d_0:%r", d_0.shape)
+    logger.debug("angle_0:%r", angle_0.shape)
+
     if origin_0.shape[0] > 0:
         # 什么鬼？这么复杂
         # 增加1个新维度[10,h,w]
         p = np.array([np.zeros(d_0.shape[0]),
-                      -d_0[:, 0] - d_0[:, 2], # d维度是[h,w,5],d_0[:, 0]实际上是降维了[h,w]，或者说[h,w,1]，实际上得到是矩形的高
+                      -d_0[:, 0] - d_0[:, 2], # d维度是[h,w,4],d_0[:, 0]实际上是降维了[h,w]，或者说[h,w,1]，实际上得到是矩形的高
                        d_0[:, 1] + d_0[:, 3], # 矩形的宽,维度是[h,w]
                       -d_0[:, 0] - d_0[:, 2], # 矩形的宽负数,维度是[h,w]
                        d_0[:, 1] + d_0[:, 3], # 矩形的宽，维度是[h,w]
@@ -495,8 +501,8 @@ def restore_rectangle_rbox(origin, geometry):
                       -d_0[:, 2]])
         # 这里实在想不清楚了，需要调试一下
         logger.debug("======================================================")
-        logger.debug("d_0.shape[0]:%r",d_0.shape[0])
-        logger.debug("-d_0[:, 0] - d_0[:, 2].shape:%r", (-d_0[:, 0] - d_0[:, 2]).shape)
+        logger.debug("一共多少个前景点：d_0.shape[0]:%r",d_0.shape[0])
+        logger.debug("每个点的-x-y:-d_0[:, 0] - d_0[:, 2].shape:%r", (- d_0[:, 0] - d_0[:, 2]).shape)
         logger.debug("得到的p的shape:%r",p.shape)
         logger.debug("得到的p:%r", p)
 

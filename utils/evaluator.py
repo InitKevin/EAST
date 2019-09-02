@@ -59,7 +59,7 @@ def validate(sess,batch_num,batch_size, generator,f_score, f_geometry,input_imag
 
         scores,geometrys = sess.run([f_score, f_geometry],feed_dict={input_images: resize_images})
 
-        logger.debug("[验证] 预测的scores/geometrys:",scores.shape,geometrys.shape)
+        logger.debug("[验证] 预测的scores/geometrys:%r,%r",scores.shape,geometrys.shape)
 
         # 注意这个detect是找出一张图中的框们
         for i in range(scores.shape[0]):
