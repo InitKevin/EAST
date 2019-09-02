@@ -70,6 +70,7 @@ def validate(sess,batch_num,batch_size, generator,f_score, f_geometry,input_imag
             boxes = detect(score_map=score, geo_map=geometry)
             bbox_pred = boxes[:, :8]
 
+            one_images_labels = one_images_labels.reshape(-1, 8)
             logger.debug("labels/bbox_pred:%r,%r",np.array(one_images_labels).shape,bbox_pred.shape)
             metrics = evaluate(one_images_labels, bbox_pred, conf())
             precision_sum += metrics['precision']
@@ -156,7 +157,7 @@ def many_to_one_match(detNum,conf,gtRectMat,detRectMat,recallMat,precisionMat):
 # xmax是右侧的x，xmin是左侧的x，ymax是下边的y，ymin是上边的y
 # 求出来的是a、b两个矩形，相交的面积
 def area(a, b):
-    logger.debug("a,b:%r,%r",a.shape,b.shape)
+    logger.debug("a,b:%r,%r",a,b)
     dx = min(a.xmax, b.xmax) - max(a.xmin, b.xmin) + 1
     dy = min(a.ymax, b.ymax) - max(a.ymin, b.ymin) + 1
     if (dx >= 0) and (dy >= 0):
