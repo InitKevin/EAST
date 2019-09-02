@@ -66,9 +66,7 @@ def validate(sess,batch_num,batch_size, generator,f_score, f_geometry,input_imag
             score = scores[i]
             geometry = geometrys[i]
 
-            timer = [('restore', 0),('nms', 0)]
-
-            boxes, timer = detect(score_map=score, geo_map=geometry, timer=timer)
+            boxes = detect(score_map=score, geo_map=geometry)
             bbox_pred = boxes[:, :8]
 
             metrics = evaluate(labels, bbox_pred, conf())
@@ -76,13 +74,11 @@ def validate(sess,batch_num,batch_size, generator,f_score, f_geometry,input_imag
             recall_sum += metrics['recall']
             f1_sum += metrics['hmean']
 
-            logger.debug("这个批次的图片#%d的探测结果的精确度:%f,召回率:%f,F1:%f;耗时:restore:%f,NMS:%f",
+            logger.debug("这个批次的图片#%d的探测结果的精确度:%f,召回率:%f,F1:%f",
                          i,
                          metrics['precision'],
                          metrics['recall'],
-                         metrics['hmean'],
-                         timer['restore'],
-                         timer['name'])
+                         metrics['hmean'])
 
     precision_mean = precision_sum / batch_num * batch_size
     recall_mean = recall_sum / batch_num * batch_size

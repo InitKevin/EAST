@@ -38,7 +38,7 @@ def get_images():
 
 
 
-def detect(score_map, geo_map, timer, score_map_thresh=0.8, box_thresh=0.1, nms_thres=0.2):
+def detect(score_map, geo_map,score_map_thresh=0.8, box_thresh=0.1, nms_thres=0.2):
     '''
     restore text boxes from score map and geo map
     :param score_map:
@@ -79,18 +79,18 @@ def detect(score_map, geo_map, timer, score_map_thresh=0.8, box_thresh=0.1, nms_
     print(score_map.shape)
     print(boxes[:, 8].shape)
     boxes[:, 8] = score_map[xy_text[:, 0], xy_text[:, 1]].reshape(-1)
-    timer['restore'] = time.time() - start
+    logger.debug("从geo map还原矩形框的时间：%d",time.time() - start)
+
     # nms part
     start = time.time()
-
     # 终于开始做激动人心的local aware NMS了！
     # boxes = nms_locality.nms_locality(boxes.astype(np.float64), nms_thres)
     boxes = lanms.merge_quadrangle_n9(boxes.astype('float32'), nms_thres)
-    timer['nms'] = time.time() - start
+    logger.debug("NMS的时间：%d",time.time() - start)
 
     if boxes.shape[0] == 0:
         logger.warning("经过NMS合并，结果居然为0个框")
-        return None, timer
+        return None
 
     # here we filter some low score boxes by the average score map,
     # this is different from the orginal paper
@@ -100,7 +100,7 @@ def detect(score_map, geo_map, timer, score_map_thresh=0.8, box_thresh=0.1, nms_
         boxes[i, 8] = cv2.mean(score_map, mask)[0]
     boxes = boxes[boxes[:, 8] > box_thresh] # 把那些置信度低的去掉再
 
-    return boxes, timer
+    return boxes
 
 
 def sort_poly(p):
