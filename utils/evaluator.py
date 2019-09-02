@@ -50,7 +50,10 @@ def validate(sess,batch_num,batch_size, generator,f_score, f_geometry,input_imag
         # 取出一个batch的数据
         images,labels = next(generator)
 
-        resize_images = [data_util.resize_image(img) for img in images]
+        resize_images = []
+        for img in images:
+            resize_img,_ = data_util.resize_image(img)
+            resize_images.append(resize_img)
 
         logger.debug("[验证] 加载了一张图片(%r)，准备训练...",np.array(resize_images).shape)
 

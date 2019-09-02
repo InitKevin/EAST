@@ -15,7 +15,7 @@ FLAGS = tf.app.flags.FLAGS
 
 def get_images(dir):
     files = []
-    print(dir)
+    # print(dir)
     image_dir = os.path.join(dir,"images")
     logger.debug("尝试加载目录中的图像：%s",image_dir)
     for ext in ['jpg', 'png', 'jpeg', 'JPG','png']:
