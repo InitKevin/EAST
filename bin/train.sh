@@ -19,7 +19,8 @@ if [ "$1" == "debug" ] || [ "$1" == "console" ]; then
     --validate_batch_num=1 \
     --early_stop=1 \
     --save_summary_steps=1 \
-    --checkpoint_path=./model/checkpoint/ \
+    --checkpoint_path=./model/checkpoint \
+    --tboard_dir=./logs/tboard \
     --text_scale=512 \
     --training_data_path=./data/train \
     --validate_data_path=./data/validate \
@@ -44,7 +45,8 @@ echo "###### 生产模式 ######"
     --validate_batch_num=30 \
     --early_stop=100 \
     --save_summary_steps=100 \
-    --checkpoint_path=./model/checkpoint/ \
+    --checkpoint_path=./model/checkpoint \
+    --tboard_dir=./logs/tboard \
     --text_scale=512 \
     --training_data_path=./data/train \
     --validate_data_path=./data/validate \

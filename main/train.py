@@ -8,6 +8,7 @@ from utils import icdar
 from utils.early_stop import EarlyStop
 from utils import evaluator
 import logging
+import datetime
 
 FLAGS = tf.app.flags.FLAGS
 logger = logging.getLogger("Train")
@@ -50,6 +51,17 @@ def average_gradients(tower_grads):
         average_grads.append(grad_and_var)
 
     return average_grads
+
+
+
+def create_summary_writer():
+    # 按照日期，一天生成一个Summary/Tboard数据目录
+    # Set tf summary
+    if not os.path.exists(FLAGS.tboard_dir): os.makedirs(FLAGS.tboard_dir)
+    today = datetime.datetime.now().strftime("%Y%m%d-%H%M")
+    summary_dir = os.path.join(FLAGS.tboard_dir,today)
+    summary_writer = tf.summary.FileWriter(FLAGS.summary_path, tf.get_default_graph())
+    return summary_writer
 
 
 def main(argv=None):
@@ -124,7 +136,7 @@ def main(argv=None):
         train_op = tf.no_op(name='train_op')
 
     saver = tf.train.Saver(tf.global_variables())
-    summary_writer = tf.summary.FileWriter(FLAGS.checkpoint_path, tf.get_default_graph())
+    create_summary_writer()
 
     init = tf.global_variables_initializer()
 
@@ -244,7 +256,8 @@ def init_flags():
     tf.app.flags.DEFINE_float('moving_average_decay', 0.997, '')
     tf.app.flags.DEFINE_string('gpu_list', '0', '')
     tf.app.flags.DEFINE_boolean('debug',False,'')
-    tf.app.flags.DEFINE_string('checkpoint_path', '/tmp/east_resnet_v1_50_rbox/', '')
+    tf.app.flags.DEFINE_string('checkpoint_path', '', '')
+    tf.app.flags.DEFINE_string('tboard_dir', '', '')
     tf.app.flags.DEFINE_boolean('restore', False, 'whether to resotre from checkpoint')
     tf.app.flags.DEFINE_integer('validate_steps', 1000, '')
     tf.app.flags.DEFINE_integer('validate_batch_num', 30, '') # 一共检查多少个批次
