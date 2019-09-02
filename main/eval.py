@@ -76,8 +76,6 @@ def detect(score_map, geo_map,score_map_thresh=0.8, box_thresh=0.1, nms_thres=0.
     # 返回的box是 8个点的坐标值+1个是否文字的置信度
     boxes = np.zeros((text_box_restored.shape[0], 9), dtype=np.float32)
     boxes[:, :8] = text_box_restored.reshape((-1, 8))
-    print(score_map.shape)
-    print(boxes[:, 8].shape)
     boxes[:, 8] = score_map[xy_text[:, 0], xy_text[:, 1]].reshape(-1)
     logger.debug("从geo map还原矩形框的时间：%d",time.time() - start)
 
@@ -100,6 +98,7 @@ def detect(score_map, geo_map,score_map_thresh=0.8, box_thresh=0.1, nms_thres=0.
         boxes[i, 8] = cv2.mean(score_map, mask)[0]
     boxes = boxes[boxes[:, 8] > box_thresh] # 把那些置信度低的去掉再
 
+    logger.debug("处理后，得到检测框：%r",boxes.shape)
     return boxes
 
 

@@ -69,6 +69,7 @@ def validate(sess,batch_num,batch_size, generator,f_score, f_geometry,input_imag
             boxes = detect(score_map=score, geo_map=geometry)
             bbox_pred = boxes[:, :8]
 
+            logger.debug("labels/bbox_pred:%r,%r",np.array(labels).shape,bbox_pred.shape)
             metrics = evaluate(labels, bbox_pred, conf())
             precision_sum += metrics['precision']
             recall_sum += metrics['recall']
