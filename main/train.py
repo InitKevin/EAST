@@ -197,12 +197,12 @@ def main(argv=None):
                           tf.assign(v_recall, recall),
                           tf.assign(v_precision, precision)])
 
-                logger.debug("评估完毕:在第", step, "步,F1:",f1,",Recall:",recall,",Precision:",precision)
+                logger.debug("评估完毕:在第%d步,F1:%f,Recall:%f,Precision:%f", step,f1,recall,precision)
                 if is_need_early_stop(early_stop, f1, saver, sess, step): break  # 用负的编辑距离
 
             if step % FLAGS.save_summary_steps == 0 and step % FLAGS.validate_steps != 0:
                 summary_str = sess.run(summary_op)
-                logger.debug("写入summary文件:",step,"步")
+                logger.debug("写入summary文件:%d步",step)
                 summary_writer.add_summary(summary_str, global_step=step)
 
                 avg_time_per_step = (time.time() - start)/FLAGS.save_summary_steps
@@ -212,7 +212,7 @@ def main(argv=None):
                     step, ml, tl, avg_time_per_step, avg_examples_per_second))
 
 
-            logger.debug("[训练] 结束batch:",step)
+            logger.debug("[训练] 结束第%d个batch",step)
 
 
 def is_need_early_stop(early_stop,value,saver,sess,step):
