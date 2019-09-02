@@ -523,11 +523,15 @@ def restore_rectangle_rbox(origin, geometry):
         #     [1 ]    [0  ,    ,1]   [1]
         # ]
         # 先凑上述的矩阵，为何要重复5次？？？
-        rotate_matrix_x = np.array([np.cos(angle_0), np.sin(angle_0)]).transpose((1, 0))
+        # np.repeat:对数组中的元素进行连续复制:[1,2,3]=>[1,1,1,2,2,2,3,3,3] : a.repeat(3)
+        rotate_matrix_x = np.array([np.cos(angle_0), np.sin(angle_0)]).transpose((1, 0)) # N*5*2
+        logger.debug("rotate_matrix_x:%r",rotate_matrix_x.shape)
         rotate_matrix_x = np.repeat(rotate_matrix_x, 5, axis=1).reshape(-1, 2, 5).transpose((0, 2, 1))  # N*5*2
+        logger.debug("rotate_matrix_x:%r",rotate_matrix_x.shape)
         rotate_matrix_y = np.array([-np.sin(angle_0), np.cos(angle_0)]).transpose((1, 0))
+        logger.debug("rotate_matrix_y:%r", rotate_matrix_y.shape)
         rotate_matrix_y = np.repeat(rotate_matrix_y, 5, axis=1).reshape(-1, 2, 5).transpose((0, 2, 1))
-        logger.debug("rotate_matrix_x,rotate_matrix_y:%r,%r",rotate_matrix_x.shape,rotate_matrix_y.shape)
+        logger.debug("rotate_matrix_y:%r", rotate_matrix_y.shape)
         # 旋转
         p_rotate_x = np.sum(rotate_matrix_x * p, axis=2)[:, :, np.newaxis]  # N*5*1
         p_rotate_y = np.sum(rotate_matrix_y * p, axis=2)[:, :, np.newaxis]  # N*5*1
