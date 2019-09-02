@@ -49,15 +49,17 @@ def detect(score_map, geo_map, timer, score_map_thresh=0.8, box_thresh=0.1, nms_
     :param nms_thres: threshold for nms
     :return:
     '''
-    if len(score_map.shape) == 4:
+    if len(score_map.shape) == 4: # [1 400 288 1]=>[400 288]
         score_map = score_map[0, :, :, 0]
         geo_map = geo_map[0, :, :, ] # (h, w, 5)
     # filter the score map，返回的是xy_text二维坐标数据
-    xy_text = np.argwhere(score_map > score_map_thresh) #返回大于阈值的坐标，(x,y)二维的坐标
-    logger.debug("xy_text:%r", xy_text.shape)
+    xy_text = np.argwhere(score_map > score_map_thresh) #返回大于阈值的坐标，(x,y)二维的坐标,score map [400 288]
+    logger.debug("score_map,xy_text:%r", score_map.shape,xy_text.shape)
+    logger.debug(xy_text)
     # sort the text boxes via the y axis，argsort函数返回的是数组值从小到大的索引值
     xy_text = xy_text[np.argsort(xy_text[:, 0])] #返回还是二维坐标数据组，只不过是按照x排序了，argsort是从小到大
     logger.debug("xy_text:%r",xy_text.shape)
+    logger.debug(xy_text)
 
     # restore
     start = time.time()
@@ -67,7 +69,7 @@ def detect(score_map, geo_map, timer, score_map_thresh=0.8, box_thresh=0.1, nms_
     # 参考这个：https://www.cnblogs.com/ymjyqsx/p/7587033.html
     text_box_restored = restore_rectangle(xy_text[:, ::-1]*4,# 为何要乘以4，上面解释了
                                           geo_map[           # 把这些点对应的值拿出来，geo_map:(h, w, 5)
-                                            xy_text[:, 0],   # xy_text.shape=>[????]
+                                            xy_text[:, 0],   # xy_text.shape=>[N,3]
                                             xy_text[:, 1],
                                             :
                                           ]) # N*4*2
