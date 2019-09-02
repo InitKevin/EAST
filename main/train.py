@@ -68,13 +68,6 @@ def main(argv=None):
     os.environ['CUDA_VISIBLE_DEVICES'] = FLAGS.gpu_list
     gpus = list(range(len(FLAGS.gpu_list.split(','))))
 
-    if not tf.gfile.Exists(FLAGS.model_path):
-        tf.gfile.MkDir(FLAGS.model_path)
-    else:
-        if not FLAGS.restore:
-            tf.gfile.DeleteRecursively(FLAGS.model_path)
-            tf.gfile.MkDir(FLAGS.model_path)
-
     input_images = tf.placeholder(tf.float32, shape=[None, None, None, 3], name='input_images')
     input_score_maps = tf.placeholder(tf.float32, shape=[None, None, None, 1], name='input_score_maps')
     if FLAGS.geometry == 'RBOX':
