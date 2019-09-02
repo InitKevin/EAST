@@ -68,12 +68,12 @@ def main(argv=None):
     os.environ['CUDA_VISIBLE_DEVICES'] = FLAGS.gpu_list
     gpus = list(range(len(FLAGS.gpu_list.split(','))))
 
-    if not tf.gfile.Exists(FLAGS.checkpoint_path):
-        tf.gfile.MkDir(FLAGS.checkpoint_path)
+    if not tf.gfile.Exists(FLAGS.model_path):
+        tf.gfile.MkDir(FLAGS.model_path)
     else:
         if not FLAGS.restore:
-            tf.gfile.DeleteRecursively(FLAGS.checkpoint_path)
-            tf.gfile.MkDir(FLAGS.checkpoint_path)
+            tf.gfile.DeleteRecursively(FLAGS.model_path)
+            tf.gfile.MkDir(FLAGS.model_path)
 
     input_images = tf.placeholder(tf.float32, shape=[None, None, None, 3], name='input_images')
     input_score_maps = tf.placeholder(tf.float32, shape=[None, None, None, 1], name='input_score_maps')
@@ -150,9 +150,9 @@ def main(argv=None):
 
     with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
         if FLAGS.restore:
-            logger.debug('尝试从[%s]中恢复训练到半截的模型',FLAGS.checkpoint_path)
+            logger.debug('尝试从[%s]中恢复训练到半截的模型',FLAGS.model_path)
             # 这个是之前的checkpoint模型，可以半截接着训练
-            ckpt = tf.train.latest_checkpoint(FLAGS.checkpoint_path)
+            ckpt = tf.train.latest_checkpoint(FLAGS.model_path)
             saver.restore(sess, ckpt)
         else:
             sess.run(init)
@@ -193,8 +193,8 @@ def main(argv=None):
 
 
             # if step % FLAGS.validate_steps == 0:
-            #     logger.debug("保存checkpoint:",FLAGS.checkpoint_path + 'model.ckpt')
-            #     saver.save(sess, FLAGS.checkpoint_path + 'model.ckpt', global_step=global_step)
+            #     logger.debug("保存checkpoint:",FLAGS.model_path + 'model.ckpt')
+            #     saver.save(sess, FLAGS.model_path + 'model.ckpt', global_step=global_step)
             # 默认是1000步，validate一下
             if step % FLAGS.validate_steps == 0:
                 precision, recall, f1 = evaluator.validate(sess,
@@ -236,7 +236,7 @@ def is_need_early_stop(early_stop,value,saver,sess,step):
 
     if decision == EarlyStop.BEST:
         logger.info("新Value值[%f]大于过去最好的Value值，早停计数器重置，并保存模型", value)
-        saver.save(sess, FLAGS.checkpoint_path + 'model.ckpt', global_step=step)
+        saver.save(sess, os.path.join(FLAGS.model_path,'model.ckpt'), global_step=step)
         return False
 
     if decision == EarlyStop.STOP:
@@ -256,7 +256,7 @@ def init_flags():
     tf.app.flags.DEFINE_float('moving_average_decay', 0.997, '')
     tf.app.flags.DEFINE_string('gpu_list', '0', '')
     tf.app.flags.DEFINE_boolean('debug',False,'')
-    tf.app.flags.DEFINE_string('checkpoint_path', '', '')
+    tf.app.flags.DEFINE_string('model_path', '', '')
     tf.app.flags.DEFINE_string('tboard_dir', '', '')
     tf.app.flags.DEFINE_boolean('restore', False, 'whether to resotre from checkpoint')
     tf.app.flags.DEFINE_integer('validate_steps', 1000, '')

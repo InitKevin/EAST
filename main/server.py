@@ -33,7 +33,7 @@ def get_host_info():
 
 
 @functools.lru_cache(maxsize=100)
-def get_predictor(checkpoint_path):
+def get_predictor(model_path):
     logger.info('loading model')
     import tensorflow as tf
     import model
@@ -49,8 +49,8 @@ def get_predictor(checkpoint_path):
 
     sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
 
-    ckpt_state = tf.train.get_checkpoint_state(checkpoint_path)
-    model_path = os.path.join(checkpoint_path, os.path.basename(ckpt_state.model_checkpoint_path))
+    ckpt_state = tf.train.get_checkpoint_state(model_path)
+    model_path = os.path.join(model_path, os.path.basename(ckpt_state.model_model_path))
     logger.info('Restore from {}'.format(model_path))
     saver.restore(sess, model_path)
 
@@ -189,7 +189,7 @@ def save_result(img, rst):
 
 
 
-checkpoint_path = './east_icdar2015_resnet_v1_50_rbox'
+model_path = './east_icdar2015_resnet_v1_50_rbox'
 
 
 @app.route('/', methods=['POST'])
@@ -199,23 +199,23 @@ def index_post():
     bio = io.BytesIO()
     request.files['image'].save(bio)
     img = cv2.imdecode(np.frombuffer(bio.getvalue(), dtype='uint8'), 1)
-    rst = get_predictor(checkpoint_path)(img)
+    rst = get_predictor(model_path)(img)
 
     save_result(img, rst)
     return render_template('index.html', session_id=rst['session_id'])
 
 
 def main():
-    global checkpoint_path
+    global model_path
     parser = argparse.ArgumentParser()
     parser.add_argument('--port', default=8769, type=int)
-    parser.add_argument('--checkpoint_path', default=checkpoint_path)
+    parser.add_argument('--model_path', default=model_path)
     args = parser.parse_args()
-    checkpoint_path = args.checkpoint_path
+    model_path = args.model_path
 
-    if not os.path.exists(args.checkpoint_path):
+    if not os.path.exists(args.model_path):
         raise RuntimeError(
-            'Checkpoint `{}` not found'.format(args.checkpoint_path))
+            'Checkpoint `{}` not found'.format(args.model_path))
 
     app.debug = False  # change this to True if you want to debug
     app.run('0.0.0.0', args.port)

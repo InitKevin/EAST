@@ -13,8 +13,7 @@ from utils.icdar import restore_rectangle
 def init_flags():
     tf.app.flags.DEFINE_string('test_data_path', '/tmp/ch4_test_images/images/', '')
     tf.app.flags.DEFINE_string('gpu_list', '0', '')
-    tf.app.flags.DEFINE_string('checkpoint_path', '/tmp/east_icdar2015_resnet_v1_50_rbox/', '')
-    tf.app.flags.DEFINE_string('output_dir', '/debug/images/', '')
+    tf.app.flags.DEFINE_string('output_dir', '/tmp/debug/images/', '')
     tf.app.flags.DEFINE_bool('no_write_images', False, 'do not write images')
 
 FLAGS = tf.app.flags.FLAGS
@@ -132,8 +131,8 @@ def main(argv=None):
         saver = tf.train.Saver(variable_averages.variables_to_restore())
 
         with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
-            ckpt_state = tf.train.get_checkpoint_state(FLAGS.checkpoint_path)
-            model_path = os.path.join(FLAGS.checkpoint_path, os.path.basename(ckpt_state.model_checkpoint_path))
+            ckpt_state = tf.train.get_checkpoint_state(FLAGS.model_path)
+            model_path = os.path.join(FLAGS.model_path, os.path.basename(ckpt_state.model_model_path))
             print('Restore from {}'.format(model_path))
             saver.restore(sess, model_path)
 
