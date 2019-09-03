@@ -38,7 +38,7 @@ echo "###### 生产模式 ######"
     --debug=False \
     --gpu_list=0 \
     --max_steps=200000 \
-    --batch_size=32 \
+    --batch_size=14 \
     --num_readers=5 \
     --input_size=512 \
     --validate_steps=1000 \
