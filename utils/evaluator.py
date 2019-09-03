@@ -50,35 +50,27 @@ def validate(sess,batch_num,batch_size, generator,f_score, f_geometry,input_imag
         # 取出一个batch的数据
         images,labels = next(generator)
 
-        resize_images = []
-        for img in images:
+        # 一个批次14张图片，每张图片进行验证
+        for img,label in zip(images,labels):
             resize_img,_ = data_util.resize_image(img)
-            resize_images.append(resize_img)
 
-        logger.debug("[验证] 加载了一张图片(%r)，准备训练...",np.array(resize_images).shape)
+            logger.debug("[验证] 加载了一张图片(%r)，准备训练...",resize_img.shape)
 
-        scores,geometrys = sess.run([f_score, f_geometry],feed_dict={input_images: resize_images})
+            scores,geometrys = sess.run([f_score, f_geometry],feed_dict={input_images: [resize_img]})
 
-        logger.debug("[验证] 预测的scores/geometrys:%r,%r",scores.shape,geometrys.shape)
+            logger.debug("[验证] 预测的scores/geometrys:%r,%r",scores.shape,geometrys.shape)
 
-        # 注意这个detect是找出一张图中的框们
-        for i in range(scores.shape[0]):
-            score = scores[i]
-            one_images_labels = labels[i]
-            geometry = geometrys[i]
-
-            boxes = detect(score_map=score, geo_map=geometry)
+            boxes = detect(score_map=scores, geo_map=geometrys)
             bbox_pred = boxes[:, :8]
 
-            one_images_labels = one_images_labels.reshape(-1, 8)
+            one_images_labels = label.reshape(-1, 8)
             logger.debug("labels/bbox_pred:%r,%r",np.array(one_images_labels).shape,bbox_pred.shape)
             metrics = evaluate(one_images_labels, bbox_pred, conf())
             precision_sum += metrics['precision']
             recall_sum += metrics['recall']
             f1_sum += metrics['hmean']
 
-            logger.debug("这个批次的图片#%d的探测结果的精确度:%f,召回率:%f,F1:%f",
-                         i,
+            logger.debug("图片探测结果的精确度:%f,召回率:%f,F1:%f",
                          metrics['precision'],
                          metrics['recall'],
                          metrics['hmean'])

@@ -11,7 +11,7 @@ import logging
 import datetime
 
 FLAGS = tf.app.flags.FLAGS
-logger = logging.getLogger("Train")
+logger = logging.getLogger(__name__)
 
 def tower_loss(images, score_maps, geo_maps, training_masks, reuse_variables=None):
     # Build inference graph
@@ -129,7 +129,7 @@ def main(argv=None):
         train_op = tf.no_op(name='train_op')
 
     saver = tf.train.Saver(tf.global_variables())
-    create_summary_writer()
+    summary_writer = create_summary_writer()
 
     init = tf.global_variables_initializer()
 
@@ -169,7 +169,7 @@ def main(argv=None):
 
             # 取出一个batch的数据
             data = next(data_generator)
-            logger.debug("[训练] 加载了一张图片，准备训练...")
+            logger.debug("[训练] 第%d步，加载了一张图片，准备训练...",step)
 
             # 训练他们
             ml, tl, _ = sess.run([model_loss,
@@ -189,7 +189,7 @@ def main(argv=None):
             #     logger.debug("保存checkpoint:",FLAGS.model_path + 'model.ckpt')
             #     saver.save(sess, FLAGS.model_path + 'model.ckpt', global_step=global_step)
             # 默认是1000步，validate一下
-            if step % FLAGS.validate_steps == 0:
+            if step!=0 and step % FLAGS.validate_steps == 0:
                 precision, recall, f1 = evaluator.validate(sess,
                                                            FLAGS.validate_batch_num,
                                                            FLAGS.batch_size,
@@ -205,7 +205,7 @@ def main(argv=None):
                 logger.debug("评估完毕:在第%d步,F1:%f,Recall:%f,Precision:%f", step,f1,recall,precision)
                 if is_need_early_stop(early_stop, f1, saver, sess, step): break  # 用负的编辑距离
 
-            if step % FLAGS.save_summary_steps == 0 and step % FLAGS.validate_steps != 0:
+            if step!=0 and step % FLAGS.save_summary_steps == 0:
                 summary_str = sess.run(summary_op)
                 logger.debug("写入summary文件:%d步",step)
                 summary_writer.add_summary(summary_str, global_step=step)
@@ -217,7 +217,7 @@ def main(argv=None):
                     step, ml, tl, avg_time_per_step, avg_examples_per_second))
 
 
-            logger.debug("[训练] 结束第%d个batch",step)
+            logger.debug("[训练] 第%d步结束",step)
 
 
 def is_need_early_stop(early_stop,value,saver,sess,step):

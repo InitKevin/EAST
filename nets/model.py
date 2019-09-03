@@ -69,7 +69,7 @@ def model(images, weight_decay=1e-5, is_training=True):
 
                 # 由网络结构图可知h0=f0
                 if i == 0:
-                    h[i] = f[i]
+                    h[i] = f[i] #f=>原始的feature map
                 # 对其他的hi有，hi = conv (concat (fi, unpool (hi-1) ) )
                 else:
                     g[i-1] = _p_shape(g[i-1], "EAST网络，第{}层合并层g[i-1]shape：".format(i-1))

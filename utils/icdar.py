@@ -20,7 +20,7 @@ def get_images(dir):
     logger.debug("尝试加载目录中的图像：%s",image_dir)
     for ext in ['jpg', 'png', 'jpeg', 'JPG','png']:
         patten = os.path.join(image_dir, '*.{}'.format(ext))
-        logger.debug("检索模式：%s",patten)
+        # logger.debug("检索模式：%s",patten)
         files.extend(glob.glob(patten))
 
     if FLAGS.debug:
@@ -28,7 +28,7 @@ def get_images(dir):
         _len = min(len(files),10)
         files = files[:_len]
 
-    logger.debug("加载完毕%d图像" , len(files))
+    logger.debug("加载完毕%d张图像路径..." , len(files))
     return files
 # data/images
 
@@ -185,6 +185,7 @@ def crop_area(im, polys, tags, crop_background=False, max_tries=50):
         # poly_axis_in_area得到的实际上是一个整张图的包含了切出来的区域的"掩码"(就是true/false)
         if polys.shape[0] != 0: # 至少有1个框
             # 这句话就是表达，你们这些框，谁在我选出的这个区域里，4行表示每个点的x或者y，满足 xmin<x<xmax 且 ymin<y<ymax
+            # polys[:, :, 0] >= xmin,这个会从【50，50，3】变成【50，50】的true false矩阵
             poly_axis_in_area = (polys[:, :, 0] >= xmin) & \
                                 (polys[:, :, 0] <= xmax) & \
                                 (polys[:, :, 1] >= ymin) & \
@@ -302,10 +303,10 @@ def point_dist_to_line(p1, p2,      p3):
 # return:
 #    [a, b, c]
 def fit_line(p1, p2):
-    # fit a line ax+by+c = 0
+    # fit a line ax+by+c = 0 ,
     if p1[0] == p1[1]:
         # 两个点的x坐标相同，说明该直行是垂直于X轴
-        return [1., 0., -p1[0]]
+        return [1., 0., -p1[0]] # 1x + 0y + -p1(x) = 0
     else:
         # https://blog.csdn.net/vola9527/article/details/40402189
         # 得到过两点的，deg：自由度：为多项式最高次幂，结果为多项式的各个系数
@@ -497,9 +498,9 @@ def restore_rectangle_rbox(origin, geometry):
         #p.shape=>(10, 3624)
         p = np.array([np.zeros(d_0.shape[0]),
                       -d_0[:, 0] - d_0[:, 2], # d维度是[h*w,4],d_0[:, 0]实际上是降维了[h*w]，或者说[h*w,1]，实际上得到是矩形的高
-                       d_0[:, 1] + d_0[:, 3], # 矩形的宽,维度是[h*w]
+                       d_0[:, 1] + d_0[:, 3], # 矩形的长,维度是[h*w]
                       -d_0[:, 0] - d_0[:, 2], # 矩形的宽负数,维度是[h*w]
-                       d_0[:, 1] + d_0[:, 3], # 矩形的宽，维度是[h*w]
+                       d_0[:, 1] + d_0[:, 3], # 矩形的长，维度是[h*w]
                       np.zeros(d_0.shape[0]),
                       np.zeros(d_0.shape[0]),
                       np.zeros(d_0.shape[0]),
@@ -609,7 +610,7 @@ def restore_rectangle(origin, geometry):
 def generate_rbox(im_size, polys, tags):
     h, w = im_size
 
-    logger.debug("开始生成rbox数据：h:%d,w:%d",h,w)
+    # logger.debug("开始生成rbox数据：h:%d,w:%d",h,w)
 
     # 初始化3个蒙版，都是512x512
     poly_mask = np.zeros((h, w), dtype=np.uint8)
@@ -661,7 +662,7 @@ def generate_rbox(im_size, polys, tags):
             p3 = poly[(i + 3) % 4]
 
             # 看这张图示：http://www.piginzoo.com/images/20190828/1566987583219.jpg
-            # 求拟合曲线的k和b，返回的是[k,0/1,b]
+            # 求拟合曲线的k和b，返回的是 ax+by+c=0的系数表达
             edge          = fit_line([p0[0], p1[0]], [p0[1], p1[1]]) #左上，右上 0,1
             backward_edge = fit_line([p0[0], p3[0]], [p0[1], p3[1]]) #左上，左下 0,3
             forward_edge  = fit_line([p1[0], p2[0]], [p1[1], p2[1]]) #右上，右下 1,2
@@ -822,7 +823,7 @@ def generator(input_size=512,
                 # 读取图片
                 im_fn = image_list[i]
                 im = cv2.imread(im_fn)
-                logger.debug ("[%s]成功加载图片文件[%s]：",name,im_fn)
+                # logger.debug ("[%s]成功加载图片文件[%s]：",name,im_fn)
                 h, w, _ = im.shape
 
                 # 读取标签txt
@@ -960,7 +961,7 @@ def generator(input_size=512,
                 # 凑过了batch_size，就被这批数据yield出去
                 # 你要理解哈，最终的是啥，是32个(32假设是批次），32个images,score_maps,geo_maps.....
                 if len(images) == batch_size:
-                    logger.debug("[%s]返回一个批次数据：%d张", name, batch_size)
+                    # logger.debug("[%s]返回一个批次数据：%d张", name, batch_size)
                     if type == "validate":
                         yield images, labels
                     else:
