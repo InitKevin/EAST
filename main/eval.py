@@ -56,7 +56,7 @@ def detect(score_map, geo_map,score_map_thresh=0.8, box_thresh=0.1, nms_thres=0.
     xy_text = xy_text[:,:2] # 从[x,y,0]=>[x,y], [N,3]=>[N,2]
     # sort the text boxes via the y axis，argsort函数返回的是数组值从小到大的索引值
     xy_text = xy_text[np.argsort(xy_text[:,0])] #返回还是二维坐标数据组，只不过是按照x排序了，argsort是从小到大
-    logger.debug("xy_text:%r",xy_text.shape)
+    logger.debug("从%r中挑选置信度大于0.8的点，得到%r",score_map.shape,xy_text.shape)
 
     # restore
     start = time.time()
@@ -83,11 +83,11 @@ def detect(score_map, geo_map,score_map_thresh=0.8, box_thresh=0.1, nms_thres=0.
     # 终于开始做激动人心的local aware NMS了！
     # boxes = nms_locality.nms_locality(boxes.astype(np.float64), nms_thres)
     boxes = lanms.merge_quadrangle_n9(boxes.astype('float32'), nms_thres)
-    logger.debug("NMS的时间：%d",time.time() - start)
+    logger.debug("NMS的完成，结果：%r，时间：%d",boxes.shape,time.time() - start)
 
     if boxes.shape[0] == 0:
         logger.warning("经过NMS合并，结果居然为0个框")
-        return None
+        boxes
 
     # here we filter some low score boxes by the average score map,
     # this is different from the orginal paper
