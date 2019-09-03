@@ -12,12 +12,12 @@ if [ "$1" == "debug" ] || [ "$1" == "console" ]; then
     --debug=True \
     --gpu_list=0 \
     --max_steps=3 \
-    --batch_size=1 \
+    --batch_size=2 \
     --num_readers=1 \
     --input_size=512 \
     --validate_steps=1 \
     --validate_batch_num=1 \
-    --early_stop=1 \
+    --early_stop=3 \
     --save_summary_steps=1 \
     --model_path=./model \
     --tboard_dir=./logs/tboard \
