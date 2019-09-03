@@ -172,9 +172,10 @@ def main(argv=None):
             logger.debug("[训练] 第%d步，加载了一张图片，准备训练...",step)
 
             # 训练他们
-            ml, tl, _ = sess.run([model_loss,
+            ml, tl, _ ,summary_str = sess.run([model_loss,
                                   total_loss,
-                                  train_op],
+                                  train_op,
+                                  summary_op],
                                  feed_dict={
                                     input_images: data[0],
                                     input_score_maps: data[2],
@@ -183,6 +184,8 @@ def main(argv=None):
             if np.isnan(tl):
                 logger.debug('Loss diverged, stop training')
                 break
+
+            logger.debug("[训练] 跑完批次的梯度下降")
 
 
             # if step % FLAGS.validate_steps == 0:
@@ -206,10 +209,8 @@ def main(argv=None):
                 if is_need_early_stop(early_stop, f1, saver, sess, step): break  # 用负的编辑距离
 
             if step!=0 and step % FLAGS.save_summary_steps == 0:
-                summary_str = sess.run(summary_op)
-                logger.debug("写入summary文件:%d步",step)
+                logger.debug("写入summary文件，第%d步",step)
                 summary_writer.add_summary(summary_str, global_step=step)
-
                 avg_time_per_step = (time.time() - start)/FLAGS.save_summary_steps
                 avg_examples_per_second = (FLAGS.save_summary_steps * FLAGS.batch_size * len(gpus))/(time.time() - start)
                 start = time.time()

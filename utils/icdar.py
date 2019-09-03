@@ -836,7 +836,7 @@ def generator(input_size=512,
                     logger.debug('标签文件不存在啊：%s',txt_fn)
                     continue
 
-                logger.debug("[%s]成功加载标签文件：%s",name,txt_fn)
+                # logger.debug("[%s]成功加载标签文件：%s",name,txt_fn)
 
                 # 读出对应label文档中的内容
                 # text_polys：样本中文字坐标:[[x1, y1], [x2, y2], [x3, y3], [x4, y4]]，text_polys shape:[N,4,2]，4是4个点，2是x和y
@@ -939,7 +939,7 @@ def generator(input_size=512,
                         new_h, new_w, _ = im.shape
 
                         score_map, geo_map, training_mask = generate_rbox((new_h, new_w), text_polys, text_tags)
-                        logger.debug("[%s]RBox数据生成完毕(score,geo,mask)：%r,%r,%r",name,score_map.shape,geo_map.shape,training_mask.shape)
+                        # logger.debug("[%s]RBox数据生成完毕(score,geo,mask)：%r,%r,%r",name,score_map.shape,geo_map.shape,training_mask.shape)
 
                     images.append(im[:, :, ::-1].astype(np.float32))
                     image_names.append(im_fn)
