@@ -45,7 +45,7 @@ echo "###### 生产模式 ######"
     --num_readers=50 \
     --input_size=512 \
     --validate_steps=1000 \
-    --validate_batch_num=30 \
+    --validate_batch_num=8 \
     --early_stop=100 \
     --save_summary_steps=100 \
     --model_path=./model \

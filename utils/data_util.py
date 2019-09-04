@@ -60,7 +60,7 @@ class GeneratorEnqueuer():
                     if self._use_multiprocessing or self.queue.qsize() < max_queue_size:
                         load_time = time.time()
                         generator_output = next(self._generator)
-                        logger.debug("进程[%d],加载一批数据，时间%f",os.getpid(),(time.time() - load_time))
+                        # logger.debug("进程[%d],加载一批数据，时间%f",os.getpid(),(time.time() - load_time))
                         self.queue.put(generator_output)
                     else:
                         time.sleep(self.wait_time)

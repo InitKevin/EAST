@@ -17,7 +17,7 @@ def get_images(dir):
     files = []
     # print(dir)
     image_dir = os.path.join(dir,"images")
-    logger.debug("进程[%d]尝试加载目录中的图像：%s",os.getpid(),image_dir)
+    # logger.debug("进程[%d]尝试加载目录中的图像：%s",os.getpid(),image_dir)
     for ext in ['jpg', 'png', 'jpeg', 'JPG','png']:
         patten = os.path.join(image_dir, '*.{}'.format(ext))
         # logger.debug("检索模式：%s",patten)
@@ -28,7 +28,7 @@ def get_images(dir):
         _len = min(len(files),10)
         files = files[:_len]
 
-    logger.debug("进程[%d]加载完毕%d张图像路径..." , os.getpid(),len(files))
+    # logger.debug("进程[%d]加载完毕%d张图像路径..." , os.getpid(),len(files))
     return files
 # data/images
 
@@ -644,8 +644,7 @@ def generate_rbox(im_size, polys, tags):
             cv2.fillPoly(training_mask,  poly.astype(np.int32)[np.newaxis, :, :],    0)
 
         # ???
-        if tag:
-            cv2.fillPoly(training_mask, poly.astype(np.int32)[np.newaxis, :, :], 0)
+        if tag:cv2.fillPoly(training_mask, poly.astype(np.int32)[np.newaxis, :, :], 0)
 
         # argwhere返回满足条件的数组元的索引
         # 啥意思？poly_mask == (poly_idx + 1)这个条件不理解？我理解这句话没啥用啊？？？
@@ -902,9 +901,9 @@ def generator(input_size=512,
                         geo_map_channels = 5 if FLAGS.geometry == 'RBOX' else 8
                         geo_map          = np.zeros((input_size, input_size, geo_map_channels), dtype=np.float32)
                         training_mask    = np.ones((input_size, input_size), dtype=np.uint8)
-                        logger.debug("进程[%d],生成了一个不包含文本框的背景%s数据：score:%r,geo:%r,mask:%r,耗时:%f",
-                                     os.getpid(),score_map.shape,geo_map.shape,training_mask.shape,name,
-                                     (time.time()-start))
+                        # logger.debug("进程[%d],生成了一个不包含文本框的背景%s数据：score:%r,geo:%r,mask:%r,耗时:%f",
+                        #              os.getpid(),score_map.shape,geo_map.shape,training_mask.shape,name,
+                        #              (time.time()-start))
 
                     else: # > 3/8
 
@@ -941,12 +940,12 @@ def generator(input_size=512,
                         new_h, new_w, _ = im.shape
 
                         score_map, geo_map, training_mask = generate_rbox((new_h, new_w), text_polys, text_tags)
-                        logger.debug("进程[%d],生成%s数据(score,geo,mask)：%r,%r,%r，耗时:%f",
-                                     os.getpid(),name,
-                                     score_map.shape,
-                                     geo_map.shape,
-                                     training_mask.shape,
-                                     (time.time()-start))
+                        # logger.debug("进程[%d],生成%s数据(score,geo,mask)：%r,%r,%r，耗时:%f",
+                        #              os.getpid(),name,
+                        #              score_map.shape,
+                        #              geo_map.shape,
+                        #              training_mask.shape,
+                        #              (time.time()-start))
 
                     images.append(im[:, :, ::-1].astype(np.float32))
                     image_names.append(im_fn)
