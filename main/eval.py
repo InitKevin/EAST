@@ -87,7 +87,7 @@ def detect(score_map, geo_map,score_map_thresh=0.8, box_thresh=0.1, nms_thres=0.
 
     if boxes.shape[0] == 0:
         logger.warning("经过NMS合并，结果居然为0个框")
-        boxes
+        return None
 
     # here we filter some low score boxes by the average score map,
     # this is different from the orginal paper

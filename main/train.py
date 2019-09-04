@@ -169,7 +169,7 @@ def main(argv=None):
 
             # 取出一个batch的数据
             data = next(data_generator)
-            logger.debug("[训练] 第%d步，加载了一张图片，准备训练...",step)
+            logger.debug("[训练] 第%d步，加载了一批(%d)图片，准备训练...",step,FLAGS.batch_size)
 
             # 训练他们
             ml, tl, _ ,summary_str = sess.run([model_loss,

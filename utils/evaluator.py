@@ -61,11 +61,15 @@ def validate(sess,batch_num,batch_size, generator,f_score, f_geometry,input_imag
             logger.debug("[验证] 预测的scores/geometrys:%r,%r",scores.shape,geometrys.shape)
 
             boxes = detect(score_map=scores, geo_map=geometrys)
-            bbox_pred = boxes[:, :8]
+            if boxes is None:
+                logger.debug("图片探测结果的精确度:0,召回率:0,F1:0")
+                continue
 
+            bbox_pred = boxes[:, :8]
             one_images_labels = label.reshape(-1, 8)
             logger.debug("labels/bbox_pred:%r,%r",np.array(one_images_labels).shape,bbox_pred.shape)
             metrics = evaluate(one_images_labels, bbox_pred, conf())
+
             precision_sum += metrics['precision']
             recall_sum += metrics['recall']
             f1_sum += metrics['hmean']
