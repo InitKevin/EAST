@@ -983,7 +983,7 @@ def generator(input_size=512,
 def get_batch(num_workers,**kwargs):
     try:
         enqueuer = GeneratorEnqueuer(generator(**kwargs), use_multiprocessing=True)
-        enqueuer.start(max_queue_size=10, workers=num_workers)
+        enqueuer.start(max_queue_size=100, workers=num_workers)
         generator_output = None
         while True:
             while enqueuer.is_running():

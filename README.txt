@@ -65,6 +65,10 @@
 - 增加了early stop机制，也是迁移自ctpn代码
 - 重构了summary写入的内容和时机
 
+### 9.3
+
+-
+
 # 原作者的日志，仅作保留
 
 ## EAST: An Efficient and Accurate Scene Text Detector
