@@ -1,6 +1,6 @@
 if [ "$1" = "stop" ]; then
     echo "!!!停止了训练!!!"
-    ps aux|grep python|grep name=east|awk '{print $2}'|xargs kill -9
+    ps aux|grep python|grep name=east_train|awk '{print $2}'|xargs kill -9
     exit
 fi
 
@@ -8,7 +8,7 @@ fi
 if [ "$1" == "debug" ] || [ "$1" == "console" ]; then
     echo "###### 调试模式 ######"
     python -m main.train \
-    --name=east \
+    --name=east_train \
     --debug=True \
     --gpu_list=0 \
     --max_steps=3 \
@@ -26,6 +26,9 @@ if [ "$1" == "debug" ] || [ "$1" == "console" ]; then
     --validate_data_path=./data/validate \
     --geometry=RBOX \
     --learning_rate=0.0001 \
+    --lambda_AABB=1000 \
+    --lambda_theta=100000 \
+    --lambda_score=1\
     --pretrained_model_path=./model/resnet_v1_50.ckpt
     exit
 fi
@@ -34,7 +37,7 @@ Date=$(date +%Y%m%d%H%M)
 echo "###### 生产模式 ######"
     nohup \
     python -m main.train \
-    --name=east \
+    --name=east_train \
     --debug=False \
     --gpu_list=0 \
     --max_steps=200000 \
@@ -52,5 +55,8 @@ echo "###### 生产模式 ######"
     --validate_data_path=./data/validate \
     --geometry=RBOX \
     --learning_rate=0.0001 \
+    --lambda_AABB=1000 \
+    --lambda_theta=100000 \
+    --lambda_score=1\
     --pretrained_model_path=./model/resnet_v1_50.ckpt \
     >> ./logs/east_$Date.log 2>&1 &

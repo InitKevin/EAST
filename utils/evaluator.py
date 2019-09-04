@@ -14,9 +14,9 @@ ICDAR2013则使用了新evaluation方法：DetEval，也就是十几年前Wolf�
 
 '''
 from collections import namedtuple
-import importlib,math
+import math
 import numpy as np
-import logging
+import logging,time
 from main.eval import detect
 from utils import data_util
 
@@ -46,6 +46,7 @@ def validate(sess,batch_num,batch_size, generator,f_score, f_geometry,input_imag
 
     precision_sum = recall_sum = f1_sum = 0
 
+    start = time.time()
     for step in range(batch_num):# 验证数据集也是循环iterate，所以要要告诉程序iterate多少个batch
         # 取出一个batch的数据
         images,labels = next(generator)
@@ -79,11 +80,11 @@ def validate(sess,batch_num,batch_size, generator,f_score, f_geometry,input_imag
                          metrics['recall'],
                          metrics['hmean'])
 
-    precision_mean = precision_sum / batch_num * batch_size
-    recall_mean = recall_sum / batch_num * batch_size
-    f1_mean = f1_sum / batch_num * batch_size
+    precision_mean = precision_sum / (batch_num * batch_size)
+    recall_mean = recall_sum / (batch_num * batch_size)
+    f1_mean = f1_sum / (batch_num * batch_size)
 
-    logger.debug("所有批次%d的图片总的平均的精确度:%f,召回率:%f,F1:%f",batch_num, precision_mean, recall_mean, f1_mean)
+    logger.debug("验证%d张图片,平均精确:%f,召回:%f,F1:%f,耗时：%f",batch_num*batch_size,precision_mean, recall_mean, f1_mean,time.time()-start)
 
     return precision_mean, recall_mean, f1_mean
 

@@ -185,7 +185,8 @@ def loss(y_true_cls, y_pred_cls,
     classification_loss = _p(classification_loss,"classification_loss")
 
     # scale classification loss to match the iou loss part
-    classification_loss *= 0.01 # 0.01是调节因子
+    classification_loss *= FLAGS.lambda_score # 调节因子=1
+
 
     # d1 -> 距离top的长度, d2->right, d3->bottom, d4->left, theta->倾斜角度
     d1_gt,   d2_gt,   d3_gt,   d4_gt,   theta_gt   = tf.split(value=y_true_geo, num_or_size_splits=5, axis=3)
@@ -218,8 +219,16 @@ def loss(y_true_cls, y_pred_cls,
     tf.summary.scalar('geometry_theta', tf.reduce_mean(L_theta * y_true_cls * training_mask))
 
     # 加权和得到geo loss
-    L_g = L_AABB + 20 * L_theta
+    L_g = L_AABB * FLAGS.lambda_AABB + L_theta * FLAGS.lambda_theta # lambda_AABB=1000,lambda_theta=100000
     L_g = _p(L_g,"L_g")
+
+    # 实际观察的（tboard）中，发现的损失值差距，epochs=600
+    # loss = L_AABB + 20 * L_theta + classification_loss * 0.01
+    #        0.001136      0.0000015     0.99
+    #        e^-3          e^-6          e^0
+    #        1000          1000000       1
+    #========>
+    # loss = L_AABB*1000 + L_theta*100000 + classification_loss*1 = 大约是3.0
 
     # 考虑training_mask，背景像素不参与误差计算
     return tf.reduce_mean(L_g * y_true_cls * training_mask) + classification_loss

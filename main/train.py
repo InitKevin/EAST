@@ -164,15 +164,15 @@ def main(argv=None):
                                          type="validate")
 
         # 开始训练啦！
-        start = time.time()
         for step in range(FLAGS.max_steps):
 
             # 取出一个batch的数据
-            load_start = time.time()
+            start = time.time()
             data = next(data_generator)
-            logger.debug("[训练] 第%d步，加载了一批(%d)图片(%f秒)，准备训练...",step,FLAGS.batch_size,(time.time()-load_start))
+            logger.debug("[训练] 第%d步，加载了一批(%d)图片(%f秒)，准备训练...",step,FLAGS.batch_size,(time.time()-start))
 
             # 训练他们
+            run_start = time.time()
             ml, tl, _ ,summary_str = sess.run([model_loss,
                                   total_loss,
                                   train_op,
@@ -186,7 +186,7 @@ def main(argv=None):
                 logger.debug('Loss diverged, stop training')
                 break
 
-            logger.debug("[训练] 跑完批次的梯度下降")
+            logger.debug("[训练] 跑完批次的梯度下降,耗时:%f",time.time()-run_start)
 
 
             # if step % FLAGS.validate_steps == 0:
@@ -219,7 +219,7 @@ def main(argv=None):
                     step, ml, tl, avg_time_per_step, avg_examples_per_second))
 
 
-            logger.debug("[训练] 第%d步结束",step)
+            logger.debug("[训练] 第%d步结束，整体耗时(包括加载数据):%f",step,(time.time()-start))
 
 
 def is_need_early_stop(early_stop,value,saver,sess,step):
@@ -261,6 +261,9 @@ def init_flags():
     tf.app.flags.DEFINE_string('pretrained_model_path', None, '')
     tf.app.flags.DEFINE_string('training_data_path', '', '')
     tf.app.flags.DEFINE_string('validate_data_path', '', '')
+    tf.app.flags.DEFINE_integer('lambda_AABB',1000 , '')
+    tf.app.flags.DEFINE_integer('lambda_theta',100000 , '')
+    tf.app.flags.DEFINE_integer('lambda_score', 1, '')
 
     # tf中定义了 tf.app.flags.FLAGS ，用于接受从终端传入的命令行参数，
     # “DEFINE_xxx”函数带3个参数，分别是变量名称，默认值，用法描述
