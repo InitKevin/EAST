@@ -57,8 +57,10 @@ class GeneratorEnqueuer():
             enable_pystack()
             while not self._stop_event.is_set():
                 try:
-                    if self._use_multiprocessing or self.queue.qsize() < max_queue_size:
+                    if self._use_multiprocessing or self.queue.qsize() < max_queue_size
+                        load_time = time.time()
                         generator_output = next(self._generator)
+                        logger.debug("[%d]进程加载一批数据，时间%f",os.getpid(),(time.time() - load_time))
                         self.queue.put(generator_output)
                     else:
                         time.sleep(self.wait_time)
@@ -68,7 +70,7 @@ class GeneratorEnqueuer():
 
         try:
             if self._use_multiprocessing:
-                logger.info("启动多进程模式加载数据")
+                logger.info("创建共享的Queue：%d",max_queue_size)
                 self.queue = multiprocessing.Queue(maxsize=max_queue_size)
                 self._stop_event = multiprocessing.Event()
             else:
