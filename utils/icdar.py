@@ -17,7 +17,7 @@ def get_images(dir):
     files = []
     # print(dir)
     image_dir = os.path.join(dir,"images")
-    logger.debug("尝试加载目录中的图像：%s",image_dir)
+    logger.debug("进程[%d]尝试加载目录中的图像：%s",os.getpid(),image_dir)
     for ext in ['jpg', 'png', 'jpeg', 'JPG','png']:
         patten = os.path.join(image_dir, '*.{}'.format(ext))
         # logger.debug("检索模式：%s",patten)
@@ -28,7 +28,7 @@ def get_images(dir):
         _len = min(len(files),10)
         files = files[:_len]
 
-    logger.debug("加载完毕%d张图像路径..." , len(files))
+    logger.debug("进程[%d]加载完毕%d张图像路径..." , os.getpid(),len(files))
     return files
 # data/images
 
@@ -878,12 +878,13 @@ def generator(input_size=512,
                     # maybe there is better strategy for augmentation" -- argman
                     # 我理解这个目的就是为了测试一些纯负样本，不过我给人觉得没必要啊，干嘛非要虐待自己，专搞一些背景出来虐自己呢？有啥好处呢？
                     # 这玩意预测出来，肯定score map都很低啊，而且，geo_map都为0，就是到各个框的上下左右都是0，何苦呢？不理解！！！？？？
+                    start = time.time()
                     if np.random.rand() < background_ratio: #background_ratio=3/8，background_ratio是个啥东东？
 
                         # crop background，crop_background=True这个标志就是说，我要的是背景，不能给我包含任何框
                         im, text_polys, text_tags = crop_area(im, text_polys, text_tags, crop_background=True)
                         if text_polys.shape[0] > 0: #看！即使你切出来一块有框的图，我也不要，对！我！不！要！
-                            logger.debug("没法搞到一块不包含文本框的纯背景啊:(%s",im_fn)
+                            #logger.debug("没法搞到一块不包含文本框的纯背景啊:(%s",im_fn)
                             continue
 
                         # pad and resize image,最终图片变成512x512，图像不变形，padding补足
@@ -901,8 +902,9 @@ def generator(input_size=512,
                         geo_map_channels = 5 if FLAGS.geometry == 'RBOX' else 8
                         geo_map          = np.zeros((input_size, input_size, geo_map_channels), dtype=np.float32)
                         training_mask    = np.ones((input_size, input_size), dtype=np.uint8)
-                        logger.debug("[%s]生成了一个不包含文本框的背景数据：score:%r,geo:%r,mask:%r",
-                                     name,score_map.shape,geo_map.shape,training_mask.shape)
+                        logger.debug("进程[%d],生成了一个不包含文本框的背景%s数据：score:%r,geo:%r,mask:%r,耗时:%f",
+                                     os.getpid(),score_map.shape,geo_map.shape,training_mask.shape,name,
+                                     (time.time()-start))
 
                     else: # > 3/8
 
@@ -939,7 +941,12 @@ def generator(input_size=512,
                         new_h, new_w, _ = im.shape
 
                         score_map, geo_map, training_mask = generate_rbox((new_h, new_w), text_polys, text_tags)
-                        # logger.debug("[%s]RBox数据生成完毕(score,geo,mask)：%r,%r,%r",name,score_map.shape,geo_map.shape,training_mask.shape)
+                        logger.debug("进程[%d],生成%s数据(score,geo,mask)：%r,%r,%r，耗时:%f",
+                                     os.getpid(),name,
+                                     score_map.shape,
+                                     geo_map.shape,
+                                     training_mask.shape,
+                                     (time.time()-start))
 
                     images.append(im[:, :, ::-1].astype(np.float32))
                     image_names.append(im_fn)
