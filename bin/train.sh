@@ -55,8 +55,8 @@ echo "###### 生产模式 ######"
     --validate_data_path=./data/validate \
     --geometry=RBOX \
     --learning_rate=0.0001 \
-    --lambda_AABB=1000 \
-    --lambda_theta=100000 \
+    --lambda_AABB=100 \
+    --lambda_theta=10000 \
     --lambda_score=1\
     --pretrained_model_path=./model/resnet_v1_50.ckpt \
     >> ./logs/east_$Date.log 2>&1 &
