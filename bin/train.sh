@@ -42,7 +42,7 @@ echo "###### 生产模式 ######"
     --gpu_list=0 \
     --max_steps=200000 \
     --batch_size=14 \
-    --num_readers=50 \
+    --num_readers=100 \
     --input_size=512 \
     --validate_steps=1000 \
     --validate_batch_num=8 \
