@@ -638,13 +638,17 @@ def generate_rbox(im_size, polys, tags):
 
         # if the poly is too small, then ignore it during training，如果太小，就不参与训练了
         # 终于明白training_mask的妙用了，就是控制那些点不参与训练
+        # 宽和高，太小的框，忽略掉
         poly_h = min(np.linalg.norm(poly[0] - poly[3]), np.linalg.norm(poly[1] - poly[2]))
         poly_w = min(np.linalg.norm(poly[0] - poly[1]), np.linalg.norm(poly[2] - poly[3]))
         if min(poly_h, poly_w) < FLAGS.min_text_size:
+            logger.debug("文本框的最小边小于%d了(h=%d,w=%d)，屏蔽这个框",FLAGS.min_text_size,poly_h,poly_w)
             cv2.fillPoly(training_mask,  poly.astype(np.int32)[np.newaxis, :, :],    0)
 
         # ???
-        if tag:cv2.fillPoly(training_mask, poly.astype(np.int32)[np.newaxis, :, :], 0)
+        if tag:
+            logger.debug("文本框是一个模糊文本框，屏蔽这个框")
+            cv2.fillPoly(training_mask, poly.astype(np.int32)[np.newaxis, :, :], 0)
 
         # argwhere返回满足条件的数组元的索引
         # 啥意思？poly_mask == (poly_idx + 1)这个条件不理解？我理解这句话没啥用啊？？？

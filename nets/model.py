@@ -143,8 +143,16 @@ def model_summary():
     这个函数的实现有点意思，作者说，没照着论文里的代码撸，而是换了个思路，
     就是看 概率IoU = 交/并，交是所有的概率相加，并是所有的概率相加
     这个loss在[-1,1]之间，好吧，就是想知道这个损失反向求导的函数是啥，呵呵
+    
+    dice loss: https://blog.csdn.net/m0_37477175/article/details/83004746#Focal_loss_35    
+    Dice loss
+    dice loss 的提出是在Ｖ-net中，其中的一段原因描述是在感兴趣的解剖结构仅占据扫描的非常小的区域，
+    从而使学习过程陷入损失函数的局部最小值。所以要加大前景区域的权重。
 '''
 def dice_coefficient(y_true_cls, y_pred_cls,training_mask):
+    import numpy as np
+    np.random.normal()
+
     '''
     dice loss
     coefficient:协同因素
@@ -155,7 +163,7 @@ def dice_coefficient(y_true_cls, y_pred_cls,training_mask):
     '''
     eps = 1e-5 #0.00001
     # reduce_sum是压缩求和，得到一个标量
-    intersection = tf.reduce_sum(y_true_cls * y_pred_cls * training_mask)
+    intersection = tf.reduce_sum(y_true_cls * y_pred_cls * training_mask) # training_mask都是1，只有文字框小的，模糊的会被屏蔽掉
     union = tf.reduce_sum(y_true_cls * training_mask) + \
             tf.reduce_sum(y_pred_cls * training_mask) + \
             eps
