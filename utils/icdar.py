@@ -23,10 +23,10 @@ def get_images(dir):
         # logger.debug("检索模式：%s",patten)
         files.extend(glob.glob(patten))
 
-    if FLAGS.debug:
-        logger.debug("调试模式，仅加载10张图片")
-        _len = min(len(files),10)
-        files = files[:_len]
+    # if FLAGS.debug:
+    #     logger.debug("调试模式，仅加载10张图片")
+    #     _len = min(len(files),10)
+    #     files = files[:_len]
 
     # logger.debug("进程[%d]加载完毕%d张图像路径..." , os.getpid(),len(files))
     return files
