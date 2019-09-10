@@ -206,7 +206,6 @@ def loss(y_true_cls, y_pred_cls,
     area_gt   = (d1_gt   + d3_gt  ) * (d2_gt   + d4_gt  )
     area_pred = (d1_pred + d3_pred) * (d2_pred + d4_pred)
 
-    from utils.log_util import _p_shape
     d1_gt = _p(d1_gt,"d1_gt")
     d1_pred = _p(d1_pred, "d1_pred")
     d2_gt = _p(d2_gt,"d2_gt")
@@ -214,17 +213,24 @@ def loss(y_true_cls, y_pred_cls,
     area_gt = _p(area_gt,"area_gt")
     area_pred = _p(area_pred, "area_pred")
 
-
     # 为何算最小+最小就是长、宽相交，这个你自己花个图就明白
     w_union = tf.minimum(d2_gt, d2_pred) + tf.minimum(d4_gt, d4_pred)
     h_union = tf.minimum(d1_gt, d1_pred) + tf.minimum(d3_gt, d3_pred)
 
+
     # 计算IoU
     area_intersect = w_union * h_union # 相交面积
     area_union = area_gt + area_pred - area_intersect
+
+    area_intersect = _p(area_intersect, "area_intersect")
+    area_union = _p(area_union, "area_union")
+
+    L_AABB_Ratio = (area_intersect + 1.0) / (area_union + 1.0)
+    L_AABB_Ratio = _p(L_AABB_Ratio, "L_AABB_Ratio")
+
     # -log(IoU)
-    L_AABB = -tf.log((area_intersect + 1.0)/(area_union + 1.0))
-    L_AABB = _p(L_AABB,"L_AABB")
+    L_AABB = -tf.log(L_AABB_Ratio)
+    L_AABB = _p(L_AABB,"L_AABB(after log)")
 
     # 角度误差函数
     L_theta = 1 - tf.cos(theta_pred - theta_gt)
