@@ -208,9 +208,9 @@ def loss(y_true_cls, y_pred_cls,
 
     from utils.log_util import _p_shape
     d1_gt = _p(d1_gt,"d1_gt")
-    d1_pred = _p(d1_gt, "d1_pred")
+    d1_pred = _p(d1_pred, "d1_pred")
     d2_gt = _p(d2_gt,"d2_gt")
-    d2_pred = _p(d2_gt, "d2_pred")
+    d2_pred = _p(d2_pred, "d2_pred")
     area_gt = _p(area_gt,"area_gt")
     area_pred = _p(area_pred, "area_pred")
 
