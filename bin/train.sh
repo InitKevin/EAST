@@ -38,7 +38,7 @@ echo "###### 生产模式 ######"
     nohup \
     python -m main.train \
     --name=east_train \
-    --debug=False \
+    --debug=True \
     --gpu_list=0 \
     --max_steps=200000 \
     --batch_size=14 \

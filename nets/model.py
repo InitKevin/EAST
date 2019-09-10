@@ -115,6 +115,7 @@ def model(images, weight_decay=1e-5, is_training=True):
             # 4 channel of axis aligned bbox and 1 channel rotation angle
             # text boxes
             geo_map = slim.conv2d(g[3], 4, 1, activation_fn=tf.nn.sigmoid, normalizer_fn=None) * FLAGS.text_scale
+
             # text rotation
             angle_map = (slim.conv2d(g[3], 1, 1, activation_fn=tf.nn.sigmoid, normalizer_fn=None) - 0.5) * np.pi/2 # angle is between [-45, 45]
             # 这里将坐标与角度信息合并输出
@@ -200,13 +201,19 @@ def loss(y_true_cls, y_pred_cls,
     d1_gt,   d2_gt,   d3_gt,   d4_gt,   theta_gt   = tf.split(value=y_true_geo, num_or_size_splits=5, axis=3)
     d1_pred, d2_pred, d3_pred, d4_pred, theta_pred = tf.split(value=y_pred_geo, num_or_size_splits=5, axis=3)
 
-    from utils.log_util import _p_shape
-    d1_gt = _p_shape(d1_gt,"d1_gt")
-    d1_pred = _p_shape(d1_gt, "d1_pred")
 
     # 为何是+，噢，是因为，预测和标注的，不是坐标，而是宽高
     area_gt   = (d1_gt   + d3_gt  ) * (d2_gt   + d4_gt  )
     area_pred = (d1_pred + d3_pred) * (d2_pred + d4_pred)
+
+    from utils.log_util import _p_shape
+    d1_gt = _p(d1_gt,"d1_gt")
+    d1_pred = _p(d1_gt, "d1_pred")
+    d2_gt = _p(d2_gt,"d2_gt")
+    d2_pred = _p(d2_gt, "d2_pred")
+    area_gt = _p(area_gt,"area_gt")
+    area_pred = _p(area_pred, "area_pred")
+
 
     # 为何算最小+最小就是长、宽相交，这个你自己花个图就明白
     w_union = tf.minimum(d2_gt, d2_pred) + tf.minimum(d4_gt, d4_pred)

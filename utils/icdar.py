@@ -519,10 +519,11 @@ def restore_rectangle_rbox(origin, geometry):
 
         # 旋转矩阵：https://blog.csdn.net/csxiaoshui/article/details/65446125
         # [
-        #     [x']    [cos,-sin,0]   [x]
-        #     [y']  = [sin, cos,0] * [y]
-        #     [1 ]    [0  ,    ,1]   [1]
+        #     [x']    [cos,-sin]   [x]
+        #     [y']  = [sin, cos] * [y]
         # ]
+        # x' = cos * x - sin * y
+        # y' = sin * x + cos * y
         # 先凑上述的矩阵，为何要重复5次？？？
         # np.repeat:对数组中的元素进行连续复制:[1,2,3]=>[1,1,1,2,2,2,3,3,3] : a.repeat(3)
         rotate_matrix_x = np.array([np.cos(angle_0), np.sin(angle_0)]).transpose((1, 0)) # N*5*2
@@ -531,12 +532,19 @@ def restore_rectangle_rbox(origin, geometry):
         logger.debug("rotate_matrix_x:%r",rotate_matrix_x.shape)
         rotate_matrix_y = np.array([-np.sin(angle_0), np.cos(angle_0)]).transpose((1, 0))
         logger.debug("rotate_matrix_y:%r", rotate_matrix_y.shape)
-        rotate_matrix_y = np.repeat(rotate_matrix_y, 5, axis=1).reshape(-1, 2, 5).transpose((0, 2, 1))
+        rotate_matrix_y = np.repeat(rotate_matrix_y, 5, axis=1).reshape(-1, 2, 5).transpose((0, 2, 1))#[N,2,5]=>[N,5,2]
         logger.debug("rotate_matrix_y:%r", rotate_matrix_y.shape)
+        # rotate_matrix_x = [cos ,sin]
+        # rotate_matrix_y = [-sin,cos]
+        # repeat 5意味着，你要对5个点做变换，就是前面那个p [10] => p [5,2]，他们做变换，因为对每个点都要做旋转，所以重复5次
 
-        # 旋转,p是喜欢旋转矩阵，
+        # 旋转,p中的5个点，都会做旋转，rotate_matrix_x * p=>
+        # [cos , sin] * [ x, y ] = [ cos*x , sin*y ] , * 操作是对应位置相乘，矩阵不变，不是矩阵相乘哈
+        # 所以得到的还是[N,5,2]，然后
         p_rotate_x = np.sum(rotate_matrix_x * p, axis=2)[:, :, np.newaxis]  # N*5*1
         p_rotate_y = np.sum(rotate_matrix_y * p, axis=2)[:, :, np.newaxis]  # N*5*1
+
+
         logger.debug("rotate_matrix_x * p:%r",(rotate_matrix_x * p).shape)
         logger.debug("np.sum(rotate_matrix_x * p, axis=2):%r",np.sum(rotate_matrix_x * p, axis=2).shape)
         logger.debug("np.sum(rotate_matrix_x * p, axis=2)[:, :, np.newaxis]:%r",(np.sum(rotate_matrix_x * p, axis=2)[:, :, np.newaxis]).shape)
@@ -571,7 +579,8 @@ def restore_rectangle_rbox(origin, geometry):
                       np.zeros(d_1.shape[0]),
                       -d_1[:, 1] - d_1[:, 3],
                       np.zeros(d_1.shape[0]),
-                      -d_1[:, 1], -d_1[:, 2]])
+                      -d_1[:, 1],
+                      -d_1[:, 2]])
         p = p.transpose((1, 0)).reshape((-1, 5, 2))  # N*5*2
 
         rotate_matrix_x = np.array([np.cos(-angle_1), -np.sin(-angle_1)]).transpose((1, 0))
@@ -910,7 +919,6 @@ def generator(input_size=512,
                         #              (time.time()-start))
 
                     else: # > 3/8
-
                         # 这个是切出一个子图来，就用这个子图做训练了，我理解，还是跟数据增强差不多，可以大幅的提高图像的利用率啊
                         im, text_polys, text_tags = crop_area(im, text_polys, text_tags, crop_background=False)
                         if text_polys.shape[0] == 0:

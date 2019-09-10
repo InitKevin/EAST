@@ -66,8 +66,8 @@ def detect(score_map, geo_map,score_map_thresh=0.8, box_thresh=0.1, nms_thres=0.
     # 参考这个：https://www.cnblogs.com/ymjyqsx/p/7587033.html
     text_box_restored = restore_rectangle(xy_text[:,::-1]*4,# 为何要乘以4，上面解释了
                                           geo_map[           # 把这些点对应的值拿出来，geo_map:(h, w, 5)
-                                            xy_text[:, 0],   # xy_text.shape=>[N,3]
-                                            xy_text[:, 1],
+                                            xy_text[:, 0],   # x坐标
+                                            xy_text[:, 1],   # y坐标，注意，这个是原图1/4的大小对应的坐标
                                             :
                                           ]) # N*4*2
     logger.debug("从预测得到了%d个框:%r",text_box_restored.shape[0],text_box_restored.shape)
@@ -125,6 +125,7 @@ def main(argv=None):
         input_images = tf.placeholder(tf.float32, shape=[None, None, None, 3], name='input_images')
         global_step = tf.get_variable('global_step', [], initializer=tf.constant_initializer(0), trainable=False)
 
+        # [1/4H, 1/4W,1], [1/4*h,1/4*w,4]
         f_score, f_geometry = model.model(input_images, is_training=False)
 
         variable_averages = tf.train.ExponentialMovingAverage(0.997, global_step)
