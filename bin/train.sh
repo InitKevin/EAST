@@ -1,5 +1,5 @@
 if [ "$1" = "help" ]; then
-    echo "bin/train.sh debug|console|stop|--model=xxxx --gpu=1"
+    echo "bin/train.sh debug|console|stop|--model_name=xxxx --gpu=1"
     exit
 fi
 
@@ -41,16 +41,16 @@ fi
 Date=$(date +%Y%m%d%H%M)
 
 # bin/train.sh --model=model.ckpt-74000
-MODEL="None"
+MODEL_NAME="None"
 GPU=0
-ARGS=`getopt -o g:m: --long gpu:,model: -- "$@"`
+ARGS=`getopt -o g:m: --long gpu:,model_name: -- "$@"`
 eval set -- "${ARGS}"
 while true ;
 do
     case "$1" in
-        --model | -m)
+        --model_name | -m)
             echo "加载预训练的模型：$2，继续训练。。。"
-            MODEL=$2
+            MODEL_NAME=$2
             shift 2
             ;;
         --gpu | -g)
@@ -65,7 +65,7 @@ done
 
 echo "###### 生产模式 ######"
 
-if [ "$MODEL" = "None" ]; then
+if [ "$MODEL_NAME" = "None" ]; then
     echo "未定义预加载模型文件名，重头开始训练！"
 fi
 
@@ -83,7 +83,7 @@ nohup \
     --early_stop=100 \
     --save_summary_steps=100 \
     --model_path=./model \
-    --model=$MODEL \
+    --model_name=$MODEL_NAME \
     --tboard_dir=./logs/tboard \
     --text_scale=512 \
     --training_data_path=./data/train \
