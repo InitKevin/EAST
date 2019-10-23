@@ -1,5 +1,5 @@
 if [ "$1" = "help" ]; then
-    echo "bin/train.sh debug|console|stop|--model_name=xxxx --gpu=1"
+    echo "bin/train.sh debug|console|stop|--model=xxxx --gpu=1"
     exit
 fi
 
@@ -40,32 +40,32 @@ fi
 
 Date=$(date +%Y%m%d%H%M)
 
-# bin/train.sh --model_name=model.ckpt-74000
-MODEL_NAME=None
+# bin/train.sh --model=model.ckpt-74000
+MODEL="None"
 GPU=0
-ARGS=`getopt --long model_name:,gpu:, -- "$@"`
+ARGS=`getopt -o g:m: --long gpu:,model: -- "$@"`
 eval set -- "${ARGS}"
 while true ;
 do
-        case "$1" in
-                --model_name)
-                    echo "加载预训练的模型：$2，继续训练。。。"
-                    MODEL_NAME=$2
-                    shift 2
-                    ;;
-                --gpu)
-                    echo "指定GPU：$2"
-                    GPU=$2
-                    shift 2
-                    ;;
-                --) shift ; break ;;
-                *) help; exit 1 ;;
-        esac
+    case "$1" in
+        --model | -m)
+            echo "加载预训练的模型：$2，继续训练。。。"
+            MODEL=$2
+            shift 2
+            ;;
+        --gpu | -g)
+            echo "指定GPU：$2"
+            GPU=$2
+            shift 2
+            ;;
+        -- ) shift ; break ;;
+        * ) help; exit 1 ;;
+    esac
 done
 
 echo "###### 生产模式 ######"
 
-if ! [ "$MODEL_NAME" = "None" ]; then
+if [ "$MODEL" = "None" ]; then
     echo "未定义预加载模型文件名，重头开始训练！"
 fi
 
@@ -83,7 +83,7 @@ nohup \
     --early_stop=100 \
     --save_summary_steps=100 \
     --model_path=./model \
-    --model_name=$MODEL_NAME \
+    --model=$MODEL \
     --tboard_dir=./logs/tboard \
     --text_scale=512 \
     --training_data_path=./data/train \
