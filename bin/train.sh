@@ -1,5 +1,10 @@
+if [ "$1" = "help" ]; then
+    echo "bin/train.sh debug|console|stop|--model_name=xxxx --gpu=1"
+    exit
+fi
+
 if [ "$1" = "stop" ]; then
-    echo "!!!停止了训练!!!"
+    echo "!!!停止EAST训练!!!"
     ps aux|grep python|grep name=east_train|awk '{print $2}'|xargs kill -9
     exit
 fi
@@ -37,7 +42,8 @@ Date=$(date +%Y%m%d%H%M)
 
 # bin/train.sh --model_name=model.ckpt-74000
 MODEL_NAME=None
-ARGS=`getopt --long model_name: -- "$@"`
+GPU=0
+ARGS=`getopt --long model_name:,gpu:, -- "$@"`
 eval set -- "${ARGS}"
 while true ;
 do
@@ -45,6 +51,11 @@ do
                 --model_name)
                     echo "加载预训练的模型：$2，继续训练。。。"
                     MODEL_NAME=$2
+                    shift 2
+                    ;;
+                --gpu)
+                    echo "指定GPU：$2"
+                    GPU=$2
                     shift 2
                     ;;
                 --) shift ; break ;;
@@ -62,7 +73,7 @@ nohup \
     python -m main.train \
     --name=east_train \
     --debug=True \
-    --gpu_list=0 \
+    --gpu_list=$GPU \
     --max_steps=200000 \
     --batch_size=14 \
     --num_readers=100 \
