@@ -650,6 +650,8 @@ def generate_rbox(im_size, polys, tags):
         # 宽和高，太小的框，忽略掉
         poly_h = min(np.linalg.norm(poly[0] - poly[3]), np.linalg.norm(poly[1] - poly[2]))
         poly_w = min(np.linalg.norm(poly[0] - poly[1]), np.linalg.norm(poly[2] - poly[3]))
+
+        # bugfix:2019.9.6，这个注释掉了，主要是因为是文本被剪裁的，这个限定会减少正样本（给他mask掉了）
         # if min(poly_h, poly_w) < FLAGS.min_text_size:
         #     logger.debug("文本框的最小边小于%d了(h=%d,w=%d)，屏蔽这个框",FLAGS.min_text_size,poly_h,poly_w)
         #     cv2.fillPoly(training_mask,  poly.astype(np.int32)[np.newaxis, :, :],    0)

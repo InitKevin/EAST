@@ -136,23 +136,29 @@ def main(argv=None):
 
     if FLAGS.pretrained_model_path is not None:
         # pretrained_model_path实际上是resnet50的pretrain模型
-        variable_restore_op = slim.assign_from_checkpoint_fn(FLAGS.pretrained_model_path, slim.get_trainable_variables(),
+        variable_restore_op = slim.assign_from_checkpoint_fn(FLAGS.pretrained_model_path,
+                                                             slim.get_trainable_variables(),
                                                              ignore_missing_vars=True)
         logger.debug("成功加载resnet预训练模型：%s",FLAGS.pretrained_model_path)
 
     early_stop = EarlyStop(FLAGS.early_stop)
 
     with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
-        if FLAGS.restore:
-            logger.debug('尝试从[%s]中恢复训练到半截的模型',FLAGS.model_path)
+        if FLAGS.model_name!="None":
+            model_meta_file_path = os.path.join(FLAGS.model_path,FLAGS.model_name) + ".meta"
+            logger.debug('尝试从[%s]中恢复训练到半截的模型',model_meta_file_path)
+            if not os.path.exists(model_meta_file_path):
+                logger.error("模型路径不存在，训练终止")
+                exit(-1)
             # 这个是之前的checkpoint模型，可以半截接着训练
             ckpt = tf.train.latest_checkpoint(FLAGS.model_path)
             saver.restore(sess, ckpt)
+            logger.debug('预训练模型[%s]加载完毕，可以继续训练了', model_meta_file_path)
         else:
             sess.run(init)
             if FLAGS.pretrained_model_path is not None:
                 variable_restore_op(sess)
-            logger.debug("从头开始训练...")
+            logger.debug("从头开始训练...，model_name=%s",FLAGS.model_name)
 
         data_generator = icdar.get_batch(num_workers=FLAGS.num_readers,
                                          input_size=FLAGS.input_size,
@@ -253,8 +259,8 @@ def init_flags():
     tf.app.flags.DEFINE_string('gpu_list', '0', '')
     tf.app.flags.DEFINE_boolean('debug',False,'')
     tf.app.flags.DEFINE_string('model_path', '', '')
+    tf.app.flags.DEFINE_string('model_name', 'None', '')
     tf.app.flags.DEFINE_string('tboard_dir', '', '')
-    tf.app.flags.DEFINE_boolean('restore', False, 'whether to resotre from checkpoint')
     tf.app.flags.DEFINE_integer('validate_steps', 1000, '')
     tf.app.flags.DEFINE_integer('validate_batch_num', 30, '') # 一共检查多少个批次
     tf.app.flags.DEFINE_integer('save_summary_steps', 100, '')
@@ -265,6 +271,7 @@ def init_flags():
     tf.app.flags.DEFINE_integer('lambda_AABB',1000 , '')
     tf.app.flags.DEFINE_integer('lambda_theta',100000 , '')
     tf.app.flags.DEFINE_integer('lambda_score', 1, '')
+
 
     # tf中定义了 tf.app.flags.FLAGS ，用于接受从终端传入的命令行参数，
     # “DEFINE_xxx”函数带3个参数，分别是变量名称，默认值，用法描述

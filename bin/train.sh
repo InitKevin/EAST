@@ -34,8 +34,31 @@ if [ "$1" == "debug" ] || [ "$1" == "console" ]; then
 fi
 
 Date=$(date +%Y%m%d%H%M)
+
+# bin/train.sh --model_name=model.ckpt-74000
+MODEL_NAME=None
+ARGS=`getopt --long model_name: -- "$@"`
+eval set -- "${ARGS}"
+while true ;
+do
+        case "$1" in
+                --model_name)
+                    echo "加载预训练的模型：$2，继续训练。。。"
+                    MODEL_NAME=$2
+                    shift 2
+                    ;;
+                --) shift ; break ;;
+                *) help; exit 1 ;;
+        esac
+done
+
 echo "###### 生产模式 ######"
-    nohup \
+
+if ! [ "$MODEL_NAME" = "None" ]; then
+    echo "未定义预加载模型文件名，重头开始训练！"
+fi
+
+nohup \
     python -m main.train \
     --name=east_train \
     --debug=True \
@@ -49,6 +72,7 @@ echo "###### 生产模式 ######"
     --early_stop=100 \
     --save_summary_steps=100 \
     --model_path=./model \
+    --model_name=$MODEL_NAME \
     --tboard_dir=./logs/tboard \
     --text_scale=512 \
     --training_data_path=./data/train \
