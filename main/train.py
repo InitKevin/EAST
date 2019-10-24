@@ -147,15 +147,14 @@ def main(argv=None):
 
     with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
         if FLAGS.model_name!="None":
-            model_meta_file_path = os.path.join(FLAGS.model_path,FLAGS.model_name) + ".meta"
-            logger.debug('尝试从[%s]中恢复训练到半截的模型',model_meta_file_path)
-            if not os.path.exists(model_meta_file_path):
+            model_full_path = os.path.join(FLAGS.model_path, FLAGS.model_name)
+            logger.debug('尝试从[%s]中恢复训练到半截的模型',model_full_path)
+            if not os.path.exists(model_full_path + ".meta"):
                 logger.error("模型路径不存在，训练终止")
                 exit(-1)
             # 这个是之前的checkpoint模型，可以半截接着训练
-            ckpt = tf.train.latest_checkpoint(FLAGS.model_path)
-            saver.restore(sess, ckpt)
-            logger.debug('预训练模型[%s]加载完毕，可以继续训练了', model_meta_file_path)
+            saver.restore(sess, model_full_path)
+            logger.debug('预训练模型[%s]加载完毕，可以继续训练了', model_full_path)
         else:
             sess.run(init)
             if FLAGS.pretrained_model_path is not None:
