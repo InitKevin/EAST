@@ -91,7 +91,7 @@ def detect(score_map, geo_map,image,score_map_thresh=0.8,box_thresh=0.1, nms_thr
     # boxes = nms_locality.nms_locality(boxes.astype(np.float64), nms_thres)
     boxes = lanms.merge_quadrangle_n9(boxes.astype('float32'), nms_thres)
     logger.debug("NMS的完成，结果：%r，时间：%d",boxes.shape,time.time() - start)
-    debug(start,image,boxes,"nms_merged.jpg",count)
+    debug(image,boxes,"nms_merged.jpg",count)
 
     if boxes.shape[0] == 0:
         logger.warning("经过NMS合并，结果居然为0个框")
