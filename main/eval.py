@@ -110,7 +110,7 @@ def debug(image,boxes,name):
     count+=1
     if count>50: count=0
     for i, box in enumerate(boxes):
-        cv2.polylines(image, box[:8].reshape((-1, 4, 2)).astype(np.int32),color=(0,0,255),thickness=1) #red
+        cv2.polylines(image, box[:8].reshape((-1, 4, 2)).astype(np.int32),isClosed=True,color=(0,0,255),thickness=1) #red
         cv2.imwrite("debug/{}_{}".format(count,name))
 
 
