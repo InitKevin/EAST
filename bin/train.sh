@@ -71,11 +71,9 @@ if [ "$1" == "debug" ] || [ "$1" == "console" ]; then
     --lambda_theta=100000 \
     --lambda_score=1\
     --pretrained_model_path=./model/resnet_v1_50.ckpt
-    exit
 fi
 
 echo "###### 生产模式 ######"
-exit
 nohup \
     python -m main.train \
     --name=east_train \
