@@ -53,7 +53,7 @@ def validate(sess,batch_num,batch_size, generator,f_score, f_geometry,input_imag
 
         # 一个批次14张图片，每张图片进行验证
         for img,label in zip(images,labels):
-            resize_img,_ = data_util.resize_image(img)
+            resize_img,_ = data_util.resize_image(img) # 为可以卷积后缩小4倍，所以要让宽高都是4的倍数，所以要resize，不是变小，而是为了适配缩小4倍
 
             logger.debug("[验证] 加载了一张图片(%r)，准备训练...",resize_img.shape)
 
@@ -61,7 +61,7 @@ def validate(sess,batch_num,batch_size, generator,f_score, f_geometry,input_imag
 
             logger.debug("[验证] 预测的scores/geometrys:%r,%r",scores.shape,geometrys.shape)
 
-            boxes = detect(score_map=scores, geo_map=geometrys)
+            boxes = detect(score_map=scores, geo_map=geometrys,img=resize_img)
             if boxes is None:
                 logger.debug("图片探测结果的精确度:0,召回率:0,F1:0")
                 continue
