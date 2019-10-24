@@ -46,7 +46,6 @@ fi
 
 if [ "$1" == "debug" ] || [ "$1" == "console" ]; then
     echo "###### 调试模式 ######"
-    exit
     python -m main.train \
     --name=east_train \
     --debug=True \
