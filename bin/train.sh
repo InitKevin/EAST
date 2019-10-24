@@ -49,7 +49,7 @@ if [ "$1" == "debug" ] || [ "$1" == "console" ]; then
     python -m main.train \
     --name=east_train \
     --debug=True \
-    --gpu_list=0 \
+    --gpu_list=$GPU \
     --max_steps=100 \
     --batch_size=1 \
     --num_readers=3 \
