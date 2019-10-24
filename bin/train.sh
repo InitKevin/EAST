@@ -9,9 +9,44 @@ if [ "$1" = "stop" ]; then
     exit
 fi
 
+Date=$(date +%Y%m%d%H%M)
+
+# bin/train.sh --model=model.ckpt-74000
+MODEL_NAME="None"
+GPU=0
+ARGS=`getopt -o g:m: --long gpu:,model_name: -- "$@"`
+eval set -- "${ARGS}"
+while true ;
+do
+    case "$1" in
+        --model_name | -m)
+            echo "加载预训练的模型：$2，继续训练。。。"
+            MODEL_NAME=$2
+            shift 2
+            ;;
+        --gpu | -g)
+            echo "指定GPU：$2"
+            GPU=$2
+            shift 2
+            ;;
+        -- )
+            shift ;
+            break
+            ;;
+        * )
+            echo "使用方式：bin/train.sh [debug] --gpu=1 --model=model.ckpt-74000"
+            exit -1
+            ;;
+    esac
+done
+
+if [ "$MODEL_NAME" = "None" ]; then
+    echo "未定义预加载模型文件名，重头开始训练！"
+fi
 
 if [ "$1" == "debug" ] || [ "$1" == "console" ]; then
     echo "###### 调试模式 ######"
+    exit
     python -m main.train \
     --name=east_train \
     --debug=True \
@@ -39,37 +74,8 @@ if [ "$1" == "debug" ] || [ "$1" == "console" ]; then
     exit
 fi
 
-Date=$(date +%Y%m%d%H%M)
-
-# bin/train.sh --model=model.ckpt-74000
-MODEL_NAME="None"
-GPU=0
-ARGS=`getopt -o g:m: --long gpu:,model_name: -- "$@"`
-eval set -- "${ARGS}"
-while true ;
-do
-    case "$1" in
-        --model_name | -m)
-            echo "加载预训练的模型：$2，继续训练。。。"
-            MODEL_NAME=$2
-            shift 2
-            ;;
-        --gpu | -g)
-            echo "指定GPU：$2"
-            GPU=$2
-            shift 2
-            ;;
-        -- ) shift ; break ;;
-        * ) help; exit 1 ;;
-    esac
-done
-
 echo "###### 生产模式 ######"
-
-if [ "$MODEL_NAME" = "None" ]; then
-    echo "未定义预加载模型文件名，重头开始训练！"
-fi
-
+exit
 nohup \
     python -m main.train \
     --name=east_train \
