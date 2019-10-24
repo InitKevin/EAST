@@ -83,7 +83,7 @@ def detect(score_map, geo_map,image,score_map_thresh=0.8,box_thresh=0.1, nms_thr
     boxes[:, :8] = text_box_restored.reshape((-1, 8))
     boxes[:, 8] = score_map[xy_text[:, 0], xy_text[:, 1]].reshape(-1)
     logger.debug("从geo map还原矩形框的时间：%d",time.time() - start)
-    debug(image, boxes, "before_nms.jpg",count)
+    debug(image.copy(), boxes, "before_nms.jpg",count)
 
     # nms part
     start = time.time()
@@ -91,7 +91,7 @@ def detect(score_map, geo_map,image,score_map_thresh=0.8,box_thresh=0.1, nms_thr
     # boxes = nms_locality.nms_locality(boxes.astype(np.float64), nms_thres)
     boxes = lanms.merge_quadrangle_n9(boxes.astype('float32'), nms_thres)
     logger.debug("NMS的完成，结果：%r，时间：%d",boxes.shape,time.time() - start)
-    debug(image,boxes,"nms_merged.jpg",count)
+    debug(image.copy(),boxes,"nms_merged.jpg",count)
 
     if boxes.shape[0] == 0:
         logger.warning("经过NMS合并，结果居然为0个框")
@@ -104,7 +104,7 @@ def detect(score_map, geo_map,image,score_map_thresh=0.8,box_thresh=0.1, nms_thr
         cv2.fillPoly(mask, box[:8].reshape((-1, 4, 2)).astype(np.int32) // 4, 1)#<----注意下一个细节，结果都除以4了，又，之前乘过4，诡异哈？
         boxes[i, 8] = cv2.mean(score_map, mask)[0]
     boxes = boxes[boxes[:, 8] > box_thresh] # 把那些置信度低的去掉再
-    debug(image, boxes, "filter_low_score.jpg",count)
+    debug(image.copy(), boxes, "filter_low_score.jpg",count)
 
     logger.debug("处理后，得到检测框：%r",boxes.shape)
     return boxes
