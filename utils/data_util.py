@@ -173,7 +173,7 @@ def resize_image(im, max_side_len=2400):
 
     new_size= (int(resize_w), int(resize_h))
     im = cv2.resize(im,new_size )
-    # logger.debug("图像[W,H] Resize，从%r=>%r",(w,h),new_size)
+    logger.debug("图像[W,H] Resize，从%r=>%r",(w,h),new_size)
 
     ratio_h = resize_h / float(h)
     ratio_w = resize_w / float(w)
