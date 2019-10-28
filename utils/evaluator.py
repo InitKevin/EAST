@@ -67,7 +67,7 @@ def validate(sess,batch_num,batch_size, generator,f_score, f_geometry,input_imag
 
             logger.debug("[验证] 预测的scores/geometrys:%r,%r",scores.shape,geometrys.shape)
 
-            boxes = detect(score_map=scores, geo_map=geometrys,image=resize_img,label=label)
+            boxes = detect(score_map=scores, geo_map=geometrys,image=resize_img,label=label.reshape(-1, 8))
             if boxes is None:
                 logger.debug("图片探测结果的精确度:0,召回率:0,F1:0")
                 continue

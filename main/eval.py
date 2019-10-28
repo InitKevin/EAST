@@ -115,11 +115,12 @@ def detect(score_map, geo_map,image,score_map_thresh=0.8,box_thresh=0.1, nms_thr
 def debug(image,boxes,name,index,label=None):
     for i, box in enumerate(boxes):
         cv2.polylines(image, box[:8].reshape((-1, 4, 2)).astype(np.int32),isClosed=True,color=(0,0,255),thickness=1) #red
-        
+
     # 如果标签不为空，画之
     if label is not None:
         for i, lbox in enumerate(label):
-            cv2.polylines(image, label[:8].reshape((-1, 4, 2)).astype(np.int32),isClosed=True,color=(255,0,0),thickness=1) #green
+            cv2.polylines(image, lbox[:8].reshape((-1, 4, 2)).astype(np.int32),isClosed=True,color=(255,0,0),thickness=1) #green
+        logger.debug("【调试】画GT：%r",label)
 
     cv2.imwrite("debug/{}_{}".format(index,name),image)
 
