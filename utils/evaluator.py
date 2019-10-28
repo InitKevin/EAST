@@ -12,6 +12,12 @@ ICDAR2013则使用了新evaluation方法：DetEval，也就是十几年前Wolf�
 
 这里的框无论是标定框还是检测框都认为是水平的矩形框
 
+2019.10.28 update
+由于，east的框都不是水平的，所以之前的方法不管用了，要用：https://blog.csdn.net/liuxiaoheng1992/article/details/82632594 这个方法，
+代码：https://github.com/liuheng92/OCR_EVALUATION：
+"Challenges 4的评测方法采用简单的计算IoU来进行评测，在Challenges 4中标定框与检测框都为多边形而不是之前的水平矩形了。"
+这种方法太粗暴了，不考虑Challenges1/2的方法还考虑啥1:1,1:N,1:M的3种情况，Challenges 4，就是挨个算GT和Box的IoU，然后计算召回率和正确率。
+
 '''
 from collections import namedtuple
 import math
@@ -61,7 +67,7 @@ def validate(sess,batch_num,batch_size, generator,f_score, f_geometry,input_imag
 
             logger.debug("[验证] 预测的scores/geometrys:%r,%r",scores.shape,geometrys.shape)
 
-            boxes = detect(score_map=scores, geo_map=geometrys,image=resize_img)
+            boxes = detect(score_map=scores, geo_map=geometrys,image=resize_img,label=label)
             if boxes is None:
                 logger.debug("图片探测结果的精确度:0,召回率:0,F1:0")
                 continue

@@ -469,6 +469,7 @@ def sort_rectangle(poly):
 # 主要核心是调用lanms，来算出需要的框
 # origin   [N,2]    放着前景的2维坐标，x从小到大
 # geometry [h,w,5]  5张原图大小的"怪怪"图，你懂得
+# 这个方法得到的其实是个矩形，但是，因为是歪的，所以只能用四边形的4个顶点的形式返回
 def restore_rectangle_rbox(origin, geometry):
 
     d = geometry[:, :4]    #geo_map:(h, w, 5)，[:4]是只切了前4个, d => [h*w,4]
@@ -496,6 +497,7 @@ def restore_rectangle_rbox(origin, geometry):
         # 什么鬼？这么复杂
         # 增加1个新维度[10,h,w]
         #p.shape=>(10, 3624)
+        # 这个是做了一个点
         p = np.array([np.zeros(d_0.shape[0]),
                       -d_0[:, 0] - d_0[:, 2], # d维度是[h*w,4],d_0[:, 0]实际上是降维了[h*w]，或者说[h*w,1]，实际上得到是矩形的高
                        d_0[:, 1] + d_0[:, 3], # 矩形的长,维度是[h*w]

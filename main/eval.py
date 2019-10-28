@@ -37,7 +37,7 @@ def get_images():
 
 
 count=0
-def detect(score_map, geo_map,image,score_map_thresh=0.8,box_thresh=0.1, nms_thres=0.2):
+def detect(score_map, geo_map,image,score_map_thresh=0.8,box_thresh=0.1, nms_thres=0.2,label=None):
     '''
     restore text boxes from score map and geo map
     :param score_map:
@@ -99,21 +99,29 @@ def detect(score_map, geo_map,image,score_map_thresh=0.8,box_thresh=0.1, nms_thr
 
     # here we filter some low score boxes by the average score map,
     # this is different from the orginal paper
+    # 这里需要解释一下，实际上是用nms过滤后的点，做了一个mask，这个mask是啥啊，就是那些框，框出来这些点来
+    # 然后这些点每个点都有自己的socore把，恩，平均他们一下，作为这个点的score值
     for i, box in enumerate(boxes):
         mask = np.zeros_like(score_map, dtype=np.uint8)
         cv2.fillPoly(mask, box[:8].reshape((-1, 4, 2)).astype(np.int32) // 4, 1)#<----注意下一个细节，结果都除以4了，又，之前乘过4，诡异哈？
-        boxes[i, 8] = cv2.mean(score_map, mask)[0]
+        boxes[i, 8] = cv2.mean(score_map, mask)[0] #<------解释上一行，因为score_map还是原图1/4的大小
     boxes = boxes[boxes[:, 8] > box_thresh] # 把那些置信度低的去掉再
-    debug(image.copy(), boxes, "filter_low_score.jpg",count)
+    debug(image.copy(), boxes, "filter_low_score.jpg",count,label=label)
 
     logger.debug("处理后，得到检测框：%r",boxes.shape)
     return boxes
 
 # 调试50张（循环覆盖），可用使用python simple-http 8080（python自带的）启动一个简单的web服务器，来调试
-def debug(image,boxes,name,index):
+def debug(image,boxes,name,index,label=None):
     for i, box in enumerate(boxes):
         cv2.polylines(image, box[:8].reshape((-1, 4, 2)).astype(np.int32),isClosed=True,color=(0,0,255),thickness=1) #red
-        cv2.imwrite("debug/{}_{}".format(index,name),image)
+        
+    # 如果标签不为空，画之
+    if label is not None:
+        for i, lbox in enumerate(label):
+            cv2.polylines(image, label[:8].reshape((-1, 4, 2)).astype(np.int32),isClosed=True,color=(255,0,0),thickness=1) #green
+
+    cv2.imwrite("debug/{}_{}".format(index,name),image)
 
 
 def sort_poly(p):
