@@ -58,11 +58,6 @@ def detect(score_map, geo_map,image,score_map_thresh=0.8,box_thresh=0.1, nms_thr
     logger.debug("从%r中挑选置信度大于0.8的点，得到%r",score_map.shape,xy_text.shape)
 
 
-    global count
-    count+=1
-    if count>50: count=0
-
-
     # restore
     start = time.time()
     # ::-1 把数组倒过来
