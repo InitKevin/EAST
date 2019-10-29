@@ -188,4 +188,4 @@ def resize_image(im, max_side_len=2400):
     ratio_h = resize_h / float(h)
     ratio_w = resize_w / float(w)
 
-    return im, (ratio_h, ratio_w)
+    return im, ratio_h, ratio_w

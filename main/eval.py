@@ -167,7 +167,7 @@ def main(argv=None):
                 start_time = time.time()
                 # 调整图像为32的倍数，但是基本上保持原图大小
 
-                im_resized, (ratio_h, ratio_w) = data_util.resize_image(im)
+                im_resized,ratio_h, ratio_w = data_util.resize_image(im)
 
                 timer = {'net': 0, 'restore': 0, 'nms': 0}
                 start = time.time()
