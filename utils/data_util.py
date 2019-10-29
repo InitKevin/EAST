@@ -149,8 +149,10 @@ def resize_box(ratio_h,ratio_w,bboxes):
     #             one_point[1] = one_point[0] * ratio_h # 调整y
     bboxes = np.array(bboxes)
     logger.debug("图像的标示框的shape：%r",bboxes.shape)
+    logger.debug("图像的标示框1：%r", bboxes)
     bboxes[:, :, 0] *= ratio_w
     bboxes[:, :, 1] *= ratio_h
+    logger.debug("图像的标示框2：%r", bboxes)
 
 # 调整宽高为32的倍数，宽高不能大于2400
 def resize_image(im, max_side_len=2400):
