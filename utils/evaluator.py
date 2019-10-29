@@ -84,7 +84,7 @@ def validate(sess,batch_num,batch_size, generator,f_score, f_geometry,input_imag
             logger.debug("labels/bbox_pred:%r,%r",np.array(one_images_labels).shape,bbox_pred.shape)
 
             # 画10张，调试用
-            if step<10: data_util.debug_draw_box(resize_img,bbox_pred,"gt_vs_pred",label)
+            if step<10: data_util.debug_draw_box(resize_img,bbox_pred,"gt_vs_pred",step,label)
 
             metrics = evaluate(one_images_labels, bbox_pred, conf())
 
