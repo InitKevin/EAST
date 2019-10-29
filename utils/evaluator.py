@@ -59,7 +59,12 @@ def validate(sess,batch_num,batch_size, generator,f_score, f_geometry,input_imag
 
         # 一个批次14张图片，每张图片进行验证
         for img,label in zip(images,labels):
-            resize_img,_ = data_util.resize_image(img) # 为可以卷积后缩小4倍，所以要让宽高都是4的倍数，所以要resize，不是变小，而是为了适配缩小4倍
+            resize_img,ratio_h, ratio_w = data_util.resize_image(img) # 为可以卷积后缩小4倍，所以要让宽高都是4的倍数，所以要resize，不是变小，而是为了适配缩小4倍
+
+            # 这里有个细节，图像可能会被缩放，这样，会导致GT的坐标不准了，所以要对GT进行缩放
+            # labels是[N,M,8]的样子，N是N张图，M是M个框，8是(x1,y1,x2,y2,x3,y3,x4,y4)
+            label = data_util.resize_box(ratio_h=ratio_h,ratio_w=ratio_w,bboxes=labels)
+            logger.debug("GT坐标做出了调整:ration(h,w)=(%f,%f),%f=%f",ratio_h,ratio_w)
 
             logger.debug("[验证] 加载了一张图片(%r)，准备训练...",resize_img.shape)
 

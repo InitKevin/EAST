@@ -141,6 +141,16 @@ class GeneratorEnqueuer():
                 time.sleep(self.wait_time)
 
 
+# 按比例调整一张图的框的坐标,bboxes是[[[x1, y1], [x2, y2], [x3, y3], [x4, y4],],]也就是[M,4,2]，M是框个数，4是4个点，2是x/y
+def resize_box(ratio_h,ratio_w,bboxes):
+    #     for one_box in bboxes:
+    #         for one_point in one_box: # 4个点
+    #             one_point[0] = one_point[0] * ratio_w # 调整x
+    #             one_point[1] = one_point[0] * ratio_h # 调整y
+    bboxes = np.array(bboxes)
+    logger.debug("图像的标示框的shape：%r",bboxes.shape)
+    bboxes[:, :, 0] *= ratio_w
+    bboxes[:, :, 1] *= ratio_h
 
 # 调整宽高为32的倍数，宽高不能大于2400
 def resize_image(im, max_side_len=2400):
