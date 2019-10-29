@@ -36,7 +36,6 @@ def get_images():
     return files
 
 
-count=0
 def detect(score_map, geo_map,image,score_map_thresh=0.8,box_thresh=0.1, nms_thres=0.2,label=None):
     '''
     restore text boxes from score map and geo map
@@ -83,7 +82,6 @@ def detect(score_map, geo_map,image,score_map_thresh=0.8,box_thresh=0.1, nms_thr
     boxes[:, :8] = text_box_restored.reshape((-1, 8))
     boxes[:, 8] = score_map[xy_text[:, 0], xy_text[:, 1]].reshape(-1)
     logger.debug("从geo map还原矩形框的时间：%d",time.time() - start)
-    debug(image.copy(), boxes, "before_nms.jpg",count)
 
     # nms part
     start = time.time()
@@ -91,7 +89,6 @@ def detect(score_map, geo_map,image,score_map_thresh=0.8,box_thresh=0.1, nms_thr
     # boxes = nms_locality.nms_locality(boxes.astype(np.float64), nms_thres)
     boxes = lanms.merge_quadrangle_n9(boxes.astype('float32'), nms_thres)
     logger.debug("NMS的完成，结果：%r，时间：%d",boxes.shape,time.time() - start)
-    debug(image.copy(),boxes,"nms_merged.jpg",count)
 
     if boxes.shape[0] == 0:
         logger.warning("经过NMS合并，结果居然为0个框")
@@ -106,24 +103,9 @@ def detect(score_map, geo_map,image,score_map_thresh=0.8,box_thresh=0.1, nms_thr
         cv2.fillPoly(mask, box[:8].reshape((-1, 4, 2)).astype(np.int32) // 4, 1)#<----注意下一个细节，结果都除以4了，又，之前乘过4，诡异哈？
         boxes[i, 8] = cv2.mean(score_map, mask)[0] #<------解释上一行，因为score_map还是原图1/4的大小
     boxes = boxes[boxes[:, 8] > box_thresh] # 把那些置信度低的去掉再
-    debug(image.copy(), boxes, "filter_low_score.jpg",count,label=label)
 
     logger.debug("处理后，得到检测框：%r",boxes.shape)
     return boxes
-
-# 调试50张（循环覆盖），可用使用python simple-http 8080（python自带的）启动一个简单的web服务器，来调试
-def debug(image,boxes,name,index,label=None):
-    for i, box in enumerate(boxes):
-        cv2.polylines(image, box[:8].reshape((-1, 4, 2)).astype(np.int32),isClosed=True,color=(0,0,255),thickness=1) #red
-
-    # 如果标签不为空，画之
-    if label is not None:
-        for i, lbox in enumerate(label):
-            cv2.polylines(image, lbox[:8].reshape((-1, 4, 2)).astype(np.int32),isClosed=True,color=(255,0,0),thickness=1) #green
-        logger.debug("【调试】画GT：%r",label)
-
-    cv2.imwrite("debug/{}_{}".format(index,name),image)
-
 
 def sort_poly(p):
     min_axis = np.argmin(np.sum(p, axis=1))
