@@ -147,7 +147,6 @@ def resize_box(ratio_h,ratio_w,bboxes):
     #         for one_point in one_box: # 4个点
     #             one_point[0] = one_point[0] * ratio_w # 调整x
     #             one_point[1] = one_point[0] * ratio_h # 调整y
-    bboxes = np.array(bboxes)
     logger.debug("图像的标示框的shape：%r",bboxes.shape)
     logger.debug("图像的标示框1：%r", bboxes)
     bboxes[:, :, 0] *= ratio_w
