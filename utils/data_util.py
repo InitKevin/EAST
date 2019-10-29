@@ -152,7 +152,7 @@ def debug_draw_box(image,boxes,name,index,label):
             cv2.polylines(image, lbox[:8].reshape((-1, 4, 2)).astype(np.int32),isClosed=True,color=(255,0,0),thickness=1) #green
         # logger.debug("【调试】画GT：%r",label)
 
-    cv2.imwrite("debug/{}_{}".format(index,name),image)
+    cv2.imwrite("debug/{}_{}.jpg".format(index,name),image)
 
 # 按比例调整一张图的框的坐标,bboxes是[[[x1, y1], [x2, y2], [x3, y3], [x4, y4],],]也就是[M,4,2]，M是框个数，4是4个点，2是x/y
 def resize_box(ratio_h,ratio_w,bboxes):
