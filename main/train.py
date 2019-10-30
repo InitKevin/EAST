@@ -78,8 +78,9 @@ def main(argv=None):
         input_geo_maps = tf.placeholder(tf.float32, shape=[None, None, None, 8], name='input_geo_maps')
     input_training_masks = tf.placeholder(tf.float32, shape=[None, None, None, 1], name='input_training_masks')
 
+    # 这个变量，我有个好奇，是不是模型恢复的时候，会被恢复出来，我回头打印一个
     global_step = tf.get_variable('global_step', [], initializer=tf.constant_initializer(0), trainable=False)
-    learning_rate = tf.train.exponential_decay(FLAGS.learning_rate, global_step, decay_steps=10000, decay_rate=0.94, staircase=True)
+
 
     # 这个是定义召回率、精确度和F1
     v_recall = tf.Variable(0.001, trainable=False)
@@ -89,10 +90,13 @@ def main(argv=None):
     tf.summary.scalar("Precision",v_precision)
     tf.summary.scalar("F1",v_f1)
 
-    # add summary
-    tf.summary.scalar('learning_rate', learning_rate)
-    opt = tf.train.AdamOptimizer(learning_rate)
-    # opt = tf.train.MomentumOptimizer(learning_rate, 0.9)
+    # 之前调整LR的方法，停掉
+    # learning_rate = tf.train.exponential_decay(FLAGS.learning_rate, global_step, decay_steps=10000, decay_rate=0.94,staircase=True)
+    # tf.summary.scalar('learning_rate', learning_rate)
+    # opt = tf.train.AdamOptimizer(learning_rate)
+
+    # 不适用动态调整的learning rate，Adam自己完全可以自己调节啊？我不太明白原作者为何要调整LR，尝试改掉
+    opt = tf.train.AdamOptimizer()
 
     # split
     input_images_split = tf.split(input_images, len(gpus))
@@ -123,9 +127,9 @@ def main(argv=None):
     apply_gradient_op = opt.apply_gradients(grads, global_step=global_step)
 
     summary_op = tf.summary.merge_all()
+
     # save moving average
-    variable_averages = tf.train.ExponentialMovingAverage(
-        FLAGS.moving_average_decay, global_step)
+    variable_averages = tf.train.ExponentialMovingAverage(FLAGS.moving_average_decay, global_step)
     variables_averages_op = variable_averages.apply(tf.trainable_variables())
     # batch norm updates
     with tf.control_dependencies([variables_averages_op, apply_gradient_op, batch_norm_updates_op]):
@@ -154,7 +158,8 @@ def main(argv=None):
                 exit(-1)
             # 这个是之前的checkpoint模型，可以半截接着训练
             saver.restore(sess, model_full_path)
-            logger.debug('预训练模型[%s]加载完毕，可以继续训练了', model_full_path)
+            logger.debug('预训练模型[%s]加载完毕，可以继续训练了,从第[%r]步骤开始继续训练', model_full_path,global_step.eval())
+
         else:
             sess.run(init)
             if FLAGS.pretrained_model_path is not None:
