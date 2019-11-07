@@ -48,6 +48,7 @@ if [ "$1" == "debug" ] || [ "$1" == "console" ]; then
     echo "###### 调试模式 ######"
     python -m main.train \
     --name=east_train \
+    --backbone=mobilenet \
     --debug=True \
     --gpu_list=$GPU \
     --max_steps=100 \
@@ -69,13 +70,14 @@ if [ "$1" == "debug" ] || [ "$1" == "console" ]; then
     --lambda_AABB=1000 \
     --lambda_theta=100000 \
     --lambda_score=1\
-    --pretrained_model_path=./model/resnet_v1_50.ckpt
+    --pretrained_model_path=./data/mobilenet_v1_1.0_224.ckpt
 fi
 
 echo "###### 生产模式 ######"
 nohup \
     python -m main.train \
     --name=east_train \
+    --backbone=mobilenet \
     --debug=True \
     --gpu_list=$GPU \
     --max_steps=200000 \
@@ -97,5 +99,7 @@ nohup \
     --lambda_AABB=100 \
     --lambda_theta=10000 \
     --lambda_score=1\
-    --pretrained_model_path=./model/resnet_v1_50.ckpt \
+    --pretrained_model_path=./data/mobilenet_v1_1.0_224.ckpt \
     >> ./logs/east_$Date.log 2>&1 &
+# --pretrained_model_path=./data/mobilenet_v1_1.0_224.ckpt \
+# --pretrained_model_path=./data/resnet_v1_50.ckpt \

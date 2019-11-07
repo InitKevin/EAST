@@ -145,7 +145,7 @@ def main(argv=None):
         variable_restore_op = slim.assign_from_checkpoint_fn(FLAGS.pretrained_model_path,
                                                              slim.get_trainable_variables(),
                                                              ignore_missing_vars=True)
-        logger.debug("成功加载resnet预训练模型：%s",FLAGS.pretrained_model_path)
+        logger.debug("成功加载resnet/mobileNet预训练模型：%s",FLAGS.pretrained_model_path)
 
     early_stop = EarlyStop(FLAGS.early_stop)
 
@@ -256,6 +256,7 @@ def is_need_early_stop(early_stop,value,saver,sess,step):
 
 def init_flags():
     tf.app.flags.DEFINE_string('name', 'east', '')
+    tf.app.flags.DEFINE_string('backbone','','')
     tf.app.flags.DEFINE_integer('input_size', 512, '')
     tf.app.flags.DEFINE_integer('batch_size', 32, '')
     tf.app.flags.DEFINE_integer('num_readers', 16, '')

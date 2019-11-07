@@ -6,6 +6,7 @@ from tensorflow.contrib import slim
 import logging
 from utils.log_util import _p_shape
 from nets import resnet_v1
+from nets import mobilenet_v1
 
 tf.app.flags.DEFINE_integer('text_scale', 512, '')
 FLAGS = tf.app.flags.FLAGS
@@ -33,15 +34,22 @@ def mean_image_subtraction(images, means=[123.68, 116.78, 103.94]):
     return tf.concat(axis=3, values=channels)# 把多个array沿着第4个维度接在一起
 
 
-def model(images, weight_decay=1e-5, is_training=True):
+def model(images, weight_decay=1e-5, is_training=True, type="resnet"):
     '''
     define the model, we use slim's implemention of resnet
     '''
     # 对RGB像素做标准化，即减去均值
     images = mean_image_subtraction(images)
-    # 先将图片经过resnet_v1网络，得到resnet_v1的全部stage的输出，存在end_points里面
-    with slim.arg_scope(resnet_v1.resnet_arg_scope(weight_decay=weight_decay)):
-        logits, end_points = resnet_v1.resnet_v1_50(images, is_training=is_training, scope='resnet_v1_50')
+
+
+    if type=="resnet":
+        # 先将图片经过resnet_v1网络，得到resnet_v1的全部stage的输出，存在end_points里面
+        with slim.arg_scope(resnet_v1.resnet_arg_scope(weight_decay=weight_decay)):
+            logits, end_points = resnet_v1.resnet_v1_50(images, is_training=is_training, scope='resnet_v1_50')
+    elif type=="mobilenet":
+        logits,end_points = mobilenet_v1.mobilenet_v1()
+    else:
+        raise ValueError("无效的Backbone类型，必须为\"resenet|mobilenet\"，您的类型为：{}".format(type))
 
     with tf.variable_scope('feature_fusion', values=[end_points.values]):
         batch_norm_params = {
@@ -55,11 +63,20 @@ def model(images, weight_decay=1e-5, is_training=True):
                             normalizer_fn=slim.batch_norm, # 正则化函数
                             normalizer_params=batch_norm_params, # slim.batch_norm中的参数，以字典形式表示
                             weights_regularizer=slim.l2_regularizer(weight_decay)): # 权重的正则化器
-            # 取2，3，4，5次池化后的输出
-            f = [end_points['pool5'],
-                 end_points['pool4'],
-                 end_points['pool3'],
-                 end_points['pool2']]
+            if type == "resnet":
+                # 取2，3，4，5次池化后的输出
+                f = [end_points['pool5'],   # 1/32
+                 end_points['pool4'],   # 1/16
+                 end_points['pool3'],   # 1/8
+                 end_points['pool2']]   # 1/4
+
+            if type == "mobilenet":
+                f = [end_points['MobilenetV1/Conv2d_13_pointwise/Conv2D'],   # 1/32
+                 end_points['MobilenetV1/Conv2d_6_depthwise/depthwise'], # 1/16
+                 end_points['MobilenetV1/Conv2d_4_depthwise/depthwise'], # 1/8
+                 end_points['MobilenetV1/Conv2d_2_depthwise/depthwise']] # 1/4
+
+
             for i in range(4):
                 logger.debug("输出的Resnet的位置：%s", "Shape of f_{} {}".format(i, f[i].shape))
             g = [None, None, None, None]
