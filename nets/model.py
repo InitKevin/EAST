@@ -50,7 +50,7 @@ def model(images, weight_decay=1e-5, is_training=True, type="resnet"):
             logits, end_points = resnet_v1.resnet_v1_50(images, is_training=is_training, scope='resnet_v1_50')
             logger.debug("构建Resnet50网络")
     elif type=="mobilenet":
-            logits,end_points = mobilenet_v1.mobilenet_v1()
+            logits,end_points = mobilenet_v1.mobilenet_v1(images)
             logger.debug("构建MobileNet V1网络")
     else:
         raise ValueError("无效的Backbone类型，必须为\"resenet|mobilenet\"，您的类型为：{}".format(type))
