@@ -17,7 +17,7 @@ def tower_loss(images, score_maps, geo_maps, training_masks, reuse_variables=Non
     # Build inference graph
     with tf.variable_scope(tf.get_variable_scope(), reuse=reuse_variables):
         # 模型定义！！！，f_score是和原图大小一样的是否是前景的概率图， f_geometry是5张图，4张是上下左右值，1张是旋转角度值
-        f_score, f_geometry = model.model(images, is_training=True)
+        f_score, f_geometry = model.model(images, is_training=True,type=FLAGS.backbone)
 
     #              def loss(y_true_cls, y_pred_cls, y_true_geo, y_pred_geo,training_mask):
     model_loss = model.loss(score_maps, f_score,    geo_maps,   f_geometry,training_masks)
