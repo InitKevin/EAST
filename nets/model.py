@@ -50,8 +50,11 @@ def model(images, weight_decay=1e-5, is_training=True, type="resnet"):
             logits, end_points = resnet_v1.resnet_v1_50(images, is_training=is_training, scope='resnet_v1_50')
             logger.debug("构建Resnet50网络")
     elif type=="mobilenet":
-            logits,end_points = mobilenet_v1.mobilenet_v1(images)
-            logger.debug("构建MobileNet V1网络")
+            # num_classes=None很重要，否则，报一个很诡异的最后的1000个类别变成1001个类别的张量不匹配的问题
+            # None后，就不会加载后续的分类了，设置None是因为读了代码之后
+            logits,end_points = mobilenet_v1.mobilenet_v1(images,num_classes=None)
+            logger.debug("构建MobileNet V1网络:%r",end_points.keys())
+            model_summary() # debug
     else:
         raise ValueError("无效的Backbone类型，必须为\"resenet|mobilenet\"，您的类型为：{}".format(type))
 
@@ -78,15 +81,15 @@ def model(images, weight_decay=1e-5, is_training=True, type="resnet"):
 
 
             if type == "mobilenet":
-                f = [end_points['MobilenetV1/Conv2d_13_pointwise/Conv2D'],   # 1/32
-                 end_points['MobilenetV1/Conv2d_6_depthwise/depthwise'], # 1/16
-                 end_points['MobilenetV1/Conv2d_4_depthwise/depthwise'], # 1/8
-                 end_points['MobilenetV1/Conv2d_2_depthwise/depthwise']] # 1/4
+                f = [end_points['Conv2d_13_pointwise'],  # 1/32
+                 end_points['Conv2d_11_pointwise'],      # 1/16
+                 end_points['Conv2d_5_pointwise'],       # 1/8
+                 end_points['Conv2d_3_pointwise']]       # 1/4
                 logger.debug("从MobileNet中剥离4层：%r", f)
 
 
             for i in range(4):
-                logger.debug("输出的Resnet的位置：%s", "Shape of f_{} {}".format(i, f[i].shape))
+                logger.debug("输出的Resnet|MobileNet的位置：%s", "Shape of f_{} {}".format(i, f[i].shape))
             g = [None, None, None, None]
             h = [None, None, None, None]
             num_outputs = [None, 128, 64, 32]
@@ -151,7 +154,7 @@ def model(images, weight_decay=1e-5, is_training=True, type="resnet"):
             F_geometry = _p_shape(F_geometry, "神经网络输出：F_geometry")
 
 
-    model_summary()
+    # model_summary()
 
     return F_score, F_geometry #1+5channel的图像
 

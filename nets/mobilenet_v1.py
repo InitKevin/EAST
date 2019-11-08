@@ -6,6 +6,8 @@
 #
 # 此代码，download from，未做改动：
 #   https://github.com/tensorflow/models/blob/master/research/slim/nets/mobilenet_v1.py
+# 预训练模型使用：
+#   https://github.com/tensorflow/models/blob/master/research/slim/nets/mobilenet_v1.md
 #
 # Copyright 2017 The TensorFlow Authors. All Rights Reserved.
 #
@@ -41,16 +43,20 @@ See mobilenet_v1()
 Layer                                        Stride        params           macs     No.     Kernel         Input Size       ReduceSize 采用点
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------
 MobilenetV1/Conv2d_0/Conv2D:                   2              864      10,838,016    1       3x3x3x32        224x224x3       1/2
+
 MobilenetV1/Conv2d_1_depthwise/depthwise:      1              288       3,612,672            3x3x32          112x112x32
 MobilenetV1/Conv2d_1_pointwise/Conv2D:         1            2,048      25,690,112            1x1x32x64       112x112x32
+
 MobilenetV1/Conv2d_2_depthwise/depthwise:      2              576       1,806,336            3x3x64          112x112x32      1/4        *
 MobilenetV1/Conv2d_2_pointwise/Conv2D:         1            8,192      25,690,112            1x1x32x64x128   56x56x64
 MobilenetV1/Conv2d_3_depthwise/depthwise:      1            1,152       3,612,672            3x3x128         56x56x128
-MobilenetV1/Conv2d_3_pointwise/Conv2D:         1           16,384      51,380,224            1x1x128x128     56x56x128
+MobilenetV1/Conv2d_3_pointwise/Conv2D:         1           16,384      51,380,224            1x1x128x128     56x56x128  ------->pool2
+
 MobilenetV1/Conv2d_4_depthwise/depthwise:      2            1,152         903,168            3x3x128         56x56x128       1/8        *
 MobilenetV1/Conv2d_4_pointwise/Conv2D:         1           32,768      25,690,112            1x1x128x256     28x28x128
 MobilenetV1/Conv2d_5_depthwise/depthwise:      1            2,304       1,806,336    10      3x3x256         28x28x256
-MobilenetV1/Conv2d_5_pointwise/Conv2D:         1           65,536      51,380,224            1x1x256x256     28x28x256
+MobilenetV1/Conv2d_5_pointwise/Conv2D:         1           65,536      51,380,224            1x1x256x256     28x28x256  ------->pool3
+
 MobilenetV1/Conv2d_6_depthwise/depthwise:      2            2,304         451,584            3x3x256         28x28x256       1/16       *
 MobilenetV1/Conv2d_6_pointwise/Conv2D:         1          131,072      25,690,112            1x1x256x512     14x14x256
 MobilenetV1/Conv2d_7_depthwise/depthwise:      1            4,608         903,168            3x3x512         14x14x512(1)
@@ -62,11 +68,12 @@ MobilenetV1/Conv2d_9_pointwise/Conv2D:         1          262,144      51,380,22
 MobilenetV1/Conv2d_10_depthwise/depthwise:     1            4,608         903,168    20      3x3x512         14x14x512(4)
 MobilenetV1/Conv2d_10_pointwise/Conv2D:        1          262,144      51,380,224            1x1x512x512     14x14x512
 MobilenetV1/Conv2d_11_depthwise/depthwise:     1            4,608         903,168            3x3x512         14x14x512(5)
-MobilenetV1/Conv2d_11_pointwise/Conv2D:        1          262,144      51,380,224            1x1x512x512     14x14x512
+MobilenetV1/Conv2d_11_pointwise/Conv2D:        1          262,144      51,380,224            1x1x512x512     14x14x512  ------->pool4
+
 MobilenetV1/Conv2d_12_depthwise/depthwise:     2            4,608         225,792            3x3x512         14x14x512      1/32        *
 MobilenetV1/Conv2d_12_pointwise/Conv2D:        1          524,288      25,690,112            1x1x512x1024    7x7x512
 MobilenetV1/Conv2d_13_depthwise/depthwise:     2            9,216         451,584            3x3x1024        7x7x1024
-MobilenetV1/Conv2d_13_pointwise/Conv2D:        1        1,048,576      51,380,224    27      1x1x1024x1024   7x7x1024
+MobilenetV1/Conv2d_13_pointwise/Conv2D:        1        1,048,576      51,380,224    27      1x1x1024x1024   7x7x1024   ------->pool5
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------
 Avg Pool/s1(strip=1)                           1                                             Pool 7x7        7x7x1024
 FC/s1                                          1                                             1024x1000       1x1x1024
@@ -135,21 +142,24 @@ Conv = namedtuple('Conv', ['kernel', 'stride', 'depth'])
 DepthSepConv = namedtuple('DepthSepConv', ['kernel', 'stride', 'depth'])
 
 # MOBILENETV1_CONV_DEFS specifies the MobileNet body
+# Total 14 layers
+# DepthSepConv包含了deepwise+pointwise，实际上是2层
+# 所以合计是：1+13*2 = 27
 MOBILENETV1_CONV_DEFS = [
-    Conv(kernel=[3, 3], stride=2, depth=32),
-    DepthSepConv(kernel=[3, 3], stride=1, depth=64),
-    DepthSepConv(kernel=[3, 3], stride=2, depth=128),
-    DepthSepConv(kernel=[3, 3], stride=1, depth=128),
-    DepthSepConv(kernel=[3, 3], stride=2, depth=256),
-    DepthSepConv(kernel=[3, 3], stride=1, depth=256),
-    DepthSepConv(kernel=[3, 3], stride=2, depth=512),
-    DepthSepConv(kernel=[3, 3], stride=1, depth=512),
-    DepthSepConv(kernel=[3, 3], stride=1, depth=512),
-    DepthSepConv(kernel=[3, 3], stride=1, depth=512),
-    DepthSepConv(kernel=[3, 3], stride=1, depth=512),
-    DepthSepConv(kernel=[3, 3], stride=1, depth=512),
-    DepthSepConv(kernel=[3, 3], stride=2, depth=1024),
-    DepthSepConv(kernel=[3, 3], stride=1, depth=1024)
+    Conv(kernel=[3, 3], stride=2, depth=32),            # 1层 1/2
+    DepthSepConv(kernel=[3, 3], stride=1, depth=64),    # 2层
+    DepthSepConv(kernel=[3, 3], stride=2, depth=128),   # 2层 1/4 -- pool2
+    DepthSepConv(kernel=[3, 3], stride=1, depth=128),   # 2层
+    DepthSepConv(kernel=[3, 3], stride=2, depth=256),   # 2层 1/8 -- pool3
+    DepthSepConv(kernel=[3, 3], stride=1, depth=256),   # 2层
+    DepthSepConv(kernel=[3, 3], stride=2, depth=512),   # 2层 1/16 -- pool4
+    DepthSepConv(kernel=[3, 3], stride=1, depth=512),   # 2层
+    DepthSepConv(kernel=[3, 3], stride=1, depth=512),   # 2层
+    DepthSepConv(kernel=[3, 3], stride=1, depth=512),   # 2层
+    DepthSepConv(kernel=[3, 3], stride=1, depth=512),   # 2层
+    DepthSepConv(kernel=[3, 3], stride=1, depth=512),   # 2层
+    DepthSepConv(kernel=[3, 3], stride=2, depth=1024),  # 2层 1/32
+    DepthSepConv(kernel=[3, 3], stride=1, depth=1024)   # 2层        -- pool5
 ]
 
 
@@ -315,7 +325,7 @@ def mobilenet_v1_base(inputs,
 
 
 def mobilenet_v1(inputs,
-                 num_classes=1000,
+                 num_classes=1001,
                  dropout_keep_prob=0.999,
                  is_training=True,
                  min_depth=8,

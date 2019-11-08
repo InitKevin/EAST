@@ -37,22 +37,30 @@ def tower_loss(images, score_maps, geo_maps, training_masks, reuse_variables=Non
     return total_loss, model_loss,f_score, f_geometry
 
 
-def average_gradients(tower_grads):
-    average_grads = []
-    for grad_and_vars in zip(*tower_grads):
-        grads = []
-        for g, _ in grad_and_vars:
-            expanded_g = tf.expand_dims(g, 0)
-            grads.append(expanded_g)
-
-        grad = tf.concat(grads, 0)
-        grad = tf.reduce_mean(grad, 0)
-
-        v = grad_and_vars[0][1]
-        grad_and_var = (grad, v)
-        average_grads.append(grad_and_var)
-
-    return average_grads
+# def average_gradients(tower_grads):
+#     average_grads = []
+#     for grad_and_vars in zip(*tower_grads):
+#         grads = []
+#         for g, _ in grad_and_vars:
+#             print(grad_and_vars)
+#             try:
+#                 expanded_g = tf.expand_dims(g, 0)
+#                 grads.append(expanded_g)
+#             except Exception as e:
+#                 print(g)
+#                 print(e)
+#                 import pdb
+#                 pdb.set_trace()
+#
+#
+#         grad = tf.concat(grads, 0)
+#         grad = tf.reduce_mean(grad, 0)
+#
+#         v = grad_and_vars[0][1]
+#         grad_and_var = (grad, v)
+#         average_grads.append(grad_and_var)
+#
+#     return average_grads
 
 
 
@@ -104,26 +112,29 @@ def main(argv=None):
     input_geo_maps_split = tf.split(input_geo_maps, len(gpus))
     input_training_masks_split = tf.split(input_training_masks, len(gpus))
 
-    tower_grads = []
+    # tower_grads = []
     reuse_variables = None
-    for i, gpu_id in enumerate(gpus):
-        with tf.device('/gpu:%d' % gpu_id):
-            with tf.name_scope('model_%d' % gpu_id) as scope:
-                iis = input_images_split[i]
-                isms = input_score_maps_split[i]
-                igms = input_geo_maps_split[i]
-                itms = input_training_masks_split[i]
+    # for i, gpu_id in enumerate(gpus):
+    #     with tf.device('/gpu:%d' % gpu_id):
+    #         with tf.name_scope('model_%d' % gpu_id) as scope:
+    iis = input_images_split[0]
+    isms = input_score_maps_split[0]
+    igms = input_geo_maps_split[0]
+    itms = input_training_masks_split[0]
 
-                # 模型定义！！！
-                #                                         def tower_loss(images,score_maps, geo_maps, training_masks, reuse_variables=None):
-                total_loss, model_loss,f_score, f_geometry  = tower_loss(iis,   isms,       igms,     itms,           reuse_variables)
-                batch_norm_updates_op = tf.group(*tf.get_collection(tf.GraphKeys.UPDATE_OPS, scope))
-                reuse_variables = True
+    # 模型定义！！！
+    #                                         def tower_loss(images,score_maps, geo_maps, training_masks, reuse_variables=None):
+    total_loss, model_loss,f_score, f_geometry  = tower_loss(iis,   isms,       igms,     itms,           reuse_variables)
+    batch_norm_updates_op = tf.group(*tf.get_collection(tf.GraphKeys.UPDATE_OPS))
+    reuse_variables = True
 
-                grads = opt.compute_gradients(total_loss)
-                tower_grads.append(grads)
+    grads = opt.compute_gradients(total_loss)
+    # tower_grads.append(grads)
 
-    grads = average_gradients(tower_grads)
+    # import pdb
+    # pdb.set_trace()
+    #
+    # grads = average_gradients(tower_grads)
     apply_gradient_op = opt.apply_gradients(grads, global_step=global_step)
 
     summary_op = tf.summary.merge_all()
