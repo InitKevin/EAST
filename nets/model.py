@@ -42,12 +42,16 @@ def model(images, weight_decay=1e-5, is_training=True, type="resnet"):
     images = mean_image_subtraction(images)
 
 
+    logger.debug("使用的Backbone网络为:%s",type)
     if type=="resnet":
+
         # 先将图片经过resnet_v1网络，得到resnet_v1的全部stage的输出，存在end_points里面
         with slim.arg_scope(resnet_v1.resnet_arg_scope(weight_decay=weight_decay)):
             logits, end_points = resnet_v1.resnet_v1_50(images, is_training=is_training, scope='resnet_v1_50')
+            logger.debug("构建Resnet50网络")
     elif type=="mobilenet":
-        logits,end_points = mobilenet_v1.mobilenet_v1()
+            logits,end_points = mobilenet_v1.mobilenet_v1()
+            logger.debug("构建MobileNet V1网络")
     else:
         raise ValueError("无效的Backbone类型，必须为\"resenet|mobilenet\"，您的类型为：{}".format(type))
 
@@ -64,17 +68,21 @@ def model(images, weight_decay=1e-5, is_training=True, type="resnet"):
                             normalizer_params=batch_norm_params, # slim.batch_norm中的参数，以字典形式表示
                             weights_regularizer=slim.l2_regularizer(weight_decay)): # 权重的正则化器
             if type == "resnet":
+                logger.debug("从Resetnet中剥离4层")
                 # 取2，3，4，5次池化后的输出
                 f = [end_points['pool5'],   # 1/32
                  end_points['pool4'],   # 1/16
                  end_points['pool3'],   # 1/8
                  end_points['pool2']]   # 1/4
+                logger.debug("从Resetnet中剥离4层：%r",f)
+
 
             if type == "mobilenet":
                 f = [end_points['MobilenetV1/Conv2d_13_pointwise/Conv2D'],   # 1/32
                  end_points['MobilenetV1/Conv2d_6_depthwise/depthwise'], # 1/16
                  end_points['MobilenetV1/Conv2d_4_depthwise/depthwise'], # 1/8
                  end_points['MobilenetV1/Conv2d_2_depthwise/depthwise']] # 1/4
+                logger.debug("从MobileNet中剥离4层：%r", f)
 
 
             for i in range(4):

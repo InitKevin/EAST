@@ -145,7 +145,7 @@ def main(argv=None):
         variable_restore_op = slim.assign_from_checkpoint_fn(FLAGS.pretrained_model_path,
                                                              slim.get_trainable_variables(),
                                                              ignore_missing_vars=True)
-        logger.debug("成功加载resnet/mobileNet预训练模型：%s",FLAGS.pretrained_model_path)
+        logger.debug("成功加载resnet/mobileNet  预训练模型：%s",FLAGS.pretrained_model_path)
 
     early_stop = EarlyStop(FLAGS.early_stop)
 
