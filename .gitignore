@@ -10,6 +10,8 @@ debug/
 model/
 data/
 data
+temp/
+data.old/
 data_generator/font
 data_generator/data_generator.zip
 data_generator/background
