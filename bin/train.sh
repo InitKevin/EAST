@@ -44,7 +44,7 @@ if [ "$MODEL_NAME" = "None" ]; then
     echo "未定义预加载模型文件名，重头开始训练！"
 fi
 
-if [ "$1" == "debug" ] || [ "$1" == "console" ]; then
+#if [ "$1" == "debug" ] || [ "$1" == "console" ]; then
     echo "###### 调试模式 ######"
     python -m main.train \
     --name=east_train \
@@ -70,7 +70,7 @@ if [ "$1" == "debug" ] || [ "$1" == "console" ]; then
     --lambda_theta=100000 \
     --lambda_score=1\
     --pretrained_model_path=./model/resnet_v1_50.ckpt
-fi
+exit
 
 echo "###### 生产模式 ######"
 nohup \

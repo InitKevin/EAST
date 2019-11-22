@@ -264,9 +264,9 @@ def init_flags():
     tf.app.flags.DEFINE_float('moving_average_decay', 0.997, '')
     tf.app.flags.DEFINE_string('gpu_list', '0', '')
     tf.app.flags.DEFINE_boolean('debug',False,'')
-    tf.app.flags.DEFINE_string('model_path', '', '')
+    tf.app.flags.DEFINE_string('model_path', 'None', '')
     tf.app.flags.DEFINE_string('model_name', 'None', '')
-    tf.app.flags.DEFINE_string('tboard_dir', '', '')
+    tf.app.flags.DEFINE_string('tboard_dir', './logs/tboard', '')
     tf.app.flags.DEFINE_integer('validate_steps', 1000, '')
     tf.app.flags.DEFINE_integer('validate_batch_num', 30, '') # 一共检查多少个批次
     tf.app.flags.DEFINE_integer('save_summary_steps', 100, '')

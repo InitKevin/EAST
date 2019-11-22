@@ -25,7 +25,6 @@ import numpy as np
 import logging,time
 from main.eval import detect
 from utils import data_util
-import cv2
 
 logger = logging.getLogger("Evaluator")
 Point = namedtuple('Point', 'x y')
@@ -64,7 +63,7 @@ def validate(sess,batch_num,batch_size, generator,f_score, f_geometry,input_imag
 
             # 这里有个细节，图像可能会被缩放，这样，会导致GT的坐标不准了，所以要对GT进行缩放
             # labels是[N,M,8]的样子，N是N张图，M是M个框，8是(x1,y1,x2,y2,x3,y3,x4,y4)
-            data_util.resize_box(ratio_h=ratio_h,ratio_w=ratio_w,bboxes=label)
+            data_util.resize_box(ratio_h=ratio_h, ratio_w=ratio_w, bboxes=label)
             logger.debug("GT坐标做出了调整:ration(h,w)=(%f,%f)",ratio_h,ratio_w)
             # logger.debug("图像的标示框3：%r", label)
 
@@ -84,7 +83,7 @@ def validate(sess,batch_num,batch_size, generator,f_score, f_geometry,input_imag
             logger.debug("labels/bbox_pred:%r,%r",np.array(one_images_labels).shape,bbox_pred.shape)
 
             # 画10张，调试用
-            if step<10: data_util.debug_draw_box(resize_img,bbox_pred,"gt_vs_pred",step,label)
+            if step<10: data_util.debug_draw_box(resize_img, bbox_pred, "gt_vs_pred", step, label)
 
             metrics = evaluate(one_images_labels, bbox_pred, conf())
 
