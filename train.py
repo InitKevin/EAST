@@ -185,55 +185,60 @@ def main(argv=None):
             logger.debug("[训练] 第%d步，加载了一批(%d)图片(%f秒)，准备训练...",step,FLAGS.batch_size,(time.time()-start))
 
             # 训练他们
-            run_start = time.time()
-            ml, tl, _ ,summary_str = sess.run([model_loss,
-                                  total_loss,
-                                  train_op,
-                                  summary_op],
-                                 feed_dict={
-                                    input_images: data[0],
-                                    input_score_maps: data[2],
-                                    input_geo_maps: data[3],
-                                    input_training_masks: data[4]})
-            if np.isnan(tl):
-                logger.debug('Loss diverged, stop training')
-                break
+            if not data:
+                logger.debug("[训练] 第%d步，加载的data(%s)是空(%f秒)",step,data,(time.time()-start))
+                continue
+            else:
+               # print('ok')
+               # print(data)
+                run_start = time.time()
+                ml, tl, _ ,summary_str = sess.run([model_loss,
+                                      total_loss,
+                                      train_op,
+                                      summary_op],
+                                     feed_dict={
+                                        input_images: data[0],
+                                        input_score_maps: data[2],
+                                        input_geo_maps: data[3],
+                                        input_training_masks: data[4]})
+                if np.isnan(tl):
+                    logger.debug('Loss diverged, stop training')
+                    break
 
-            logger.debug("[训练] 跑完批次的梯度下降,耗时:%f",time.time()-run_start)
+                logger.debug("[训练] 跑完批次的梯度下降,耗时:%f",time.time()-run_start)
 
 
             # if step % FLAGS.validate_steps == 0:
             #     logger.debug("保存checkpoint:",FLAGS.model_path + 'model.ckpt')
             #     saver.save(sess, FLAGS.model_path + 'model.ckpt', global_step=global_step)
             # 默认是1000步，validate一下
-            if step!=0 and step % FLAGS.validate_steps == 0:
-                precision, recall, f1 = evaluator.validate(sess,
+                if step!=0 and step % FLAGS.validate_steps == 0:
+                    precision, recall, f1 = evaluator.validate(sess,
                                                            FLAGS.validate_batch_num,
                                                            FLAGS.batch_size,
                                                            validate_data_generator,
                                                            f_score,
                                                            f_geometry,
                                                            input_images)
-                # 更新三个scalar tensor
-                sess.run([tf.assign(v_f1, f1),
-                          tf.assign(v_recall, recall),
-                          tf.assign(v_precision, precision)])
+            	    # 更新三个scalar tensor
+                    sess.run([tf.assign(v_f1, f1),
+                              tf.assign(v_recall, recall),
+                              tf.assign(v_precision, precision)])
 
-                logger.debug("评估完毕:在第%d步,F1:%f,Recall:%f,Precision:%f", step,f1,recall,precision)
-                if is_need_early_stop(early_stop, f1, saver, sess, step): break  # 用负的编辑距离
+                    logger.debug("评估完毕:在第%d步,F1:%f,Recall:%f,Precision:%f", step,f1,recall,precision)
+                    if is_need_early_stop(early_stop, f1, saver, sess, step): break  # 用负的编辑距离
 
-            if step!=0 and step % FLAGS.save_summary_steps == 0:
-                logger.debug("写入summary文件，第%d步",step)
-                summary_writer.add_summary(summary_str, global_step=step)
-                avg_time_per_step = (time.time() - start)/FLAGS.save_summary_steps
-                avg_examples_per_second = (FLAGS.save_summary_steps * FLAGS.batch_size * len(gpus))/(time.time() - start)
-                start = time.time()
-                logger.debug('Step {:06d}, model loss {:.4f}, total loss {:.4f}, {:.2f} seconds/step, {:.2f} examples/second'.format(
+                if step!=0 and step % FLAGS.save_summary_steps == 0:
+                    logger.debug("写入summary文件，第%d步",step)
+                    summary_writer.add_summary(summary_str, global_step=step)
+                    avg_time_per_step = (time.time() - start)/FLAGS.save_summary_steps
+                    avg_examples_per_second = (FLAGS.save_summary_steps * FLAGS.batch_size * len(gpus))/(time.time() - start)
+                    start = time.time()
+                    logger.debug('Step {:06d}, model loss {:.4f}, total loss {:.4f}, {:.2f} seconds/step, {:.2f} examples/second'.format(
                     step, ml, tl, avg_time_per_step, avg_examples_per_second))
 
 
-            logger.debug("[训练] 第%d步结束，整体耗时(包括加载数据):%f",step,(time.time()-start))
-
+                logger.debug("[训练] 第%d步结束，整体耗时(包括加载数据):%f",step,(time.time()-start))
 
 def is_need_early_stop(early_stop,value,saver,sess,step):
     decision = early_stop.decide(value)
@@ -272,7 +277,7 @@ def init_flags():
     tf.app.flags.DEFINE_integer('save_summary_steps', 100, '')
     tf.app.flags.DEFINE_integer('early_stop', 100, '')
     tf.app.flags.DEFINE_string('pretrained_model_path', None, '')
-    tf.app.flags.DEFINE_string('training_data_path', '', '')
+    tf.app.flags.DEFINE_string('training_data_path', './data/train', '')
     tf.app.flags.DEFINE_string('validate_data_path', '', '')
     tf.app.flags.DEFINE_integer('lambda_AABB',1000 , '')
     tf.app.flags.DEFINE_integer('lambda_theta',100000 , '')

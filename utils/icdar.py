@@ -1011,14 +1011,17 @@ def get_batch(num_workers,**kwargs):
             while enqueuer.is_running():
                 if not enqueuer.queue.empty():
                     generator_output = enqueuer.queue.get()
+                    logger.debug("yield next data")
                     break
                 else:
-                    #logger.debug("queue is empty, which cause we are wating....")
+                    logger.debug("queue is empty, which cause we are wating....")
                     time.sleep(1)
+            logger.debug("problem1")
             yield generator_output
             generator_output = None
     finally:
         if enqueuer is not None:
+            logger.debug("problem2")
             enqueuer.stop()
 
 
