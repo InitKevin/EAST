@@ -37,7 +37,8 @@ def get_predictor(model_path):
     logger.info('loading model')
     import tensorflow as tf
     import model
-    from main.eval import resize_image, sort_poly, detect
+    from main.eval import sort_poly, detect
+    from utils.data_util import resize_image
 
     input_images = tf.placeholder(tf.float32, shape=[None, None, None, 3], name='input_images')
     global_step = tf.get_variable('global_step', [], initializer=tf.constant_initializer(0), trainable=False)

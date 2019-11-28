@@ -20,7 +20,7 @@ def get_images(dir):
     # logger.debug("进程[%d]尝试加载目录中的图像：%s",os.getpid(),image_dir)
     for ext in ['jpg', 'png', 'jpeg', 'JPG','png']:
         patten = os.path.join(image_dir, '*.{}'.format(ext))
-        # logger.debug("检索模式：%s",patten)
+        #logger.debug("检索模式：%s",patten)
         files.extend(glob.glob(patten))
 
     # if FLAGS.debug:
@@ -82,7 +82,7 @@ def polygon_area(poly):
     ]
     return np.sum(edge)/2.
 
-# 剔除越界的，面积小于1的框
+# 剔除越界的，面积小于1的框---验证集的
 def check_and_validate_polys(polys, tags, xxx_todo_changeme):
     '''
     check so that the text poly is in the same direction,
@@ -632,8 +632,10 @@ def generate_rbox(im_size, polys, tags):
 
     # polys.shape => [框数，4，2]
     for poly_idx, poly_tag in enumerate(zip(polys, tags)):
+        #logger.debug('10%s',poly_tag)
         poly = poly_tag[0]
         tag = poly_tag[1]
+
 
         r = [None, None, None, None]
         for i in range(4):
@@ -813,6 +815,7 @@ def generator(input_size=512,
     # 训练数据，返回那一坨东西，score map，geo_map,....
     if type=="train":
         data_dir=FLAGS.training_data_path
+        #logger.debug('10%s',data_dir)
         name="训练"
     # 测试数据，就一个图和labels就成了
     else:
@@ -822,8 +825,12 @@ def generator(input_size=512,
     logger.debug("启动[%s]数据集加载器",name)
     # 获得训练集路径下所有图片名字
     image_list = np.array(get_images(data_dir))
+    #print('image_list',image_list)
+    #logger.debug('11')
     # index：总样本数
     index = np.arange(0, image_list.shape[0])
+    print('index',index)
+    #logger.debug('12')
     # pdb.set_trace(x`)
     while True:
         np.random.shuffle(index)
@@ -838,8 +845,9 @@ def generator(input_size=512,
             try:
                 # 读取图片
                 im_fn = image_list[i]
+                #logger.debug('13')
                 im = cv2.imread(im_fn)
-                # logger.debug ("[%s]成功加载图片文件[%s]：",name,im_fn)
+                logger.debug ("[%s]成功加载图片文件[%s]：",name,im_fn)
                 h, w, _ = im.shape
 
                 # 读取标签txt
@@ -852,7 +860,7 @@ def generator(input_size=512,
                     logger.debug('标签文件不存在啊：%s',txt_fn)
                     continue
 
-                # logger.debug("[%s]成功加载标签文件：%s",name,txt_fn)
+                logger.debug("[%s]成功加载标签文件：%s",name,txt_fn)
 
                 # 读出对应label文档中的内容
                 # text_polys：样本中文字坐标:[[x1, y1], [x2, y2], [x3, y3], [x4, y4]]，text_polys shape:[N,4,2]，4是4个点，2是x和y
@@ -861,10 +869,12 @@ def generator(input_size=512,
                 #   377, 117, 463, 117, 465, 130, 378, 130, GenaxisTheatre
                 #   493, 115, 519, 115, 519, 131, 493, 131, [06]
                 text_polys, text_tags = load_annoataion(txt_fn) #4点标注，是不规则四边形，而不是一个旋转的矩形
-
+                # logger.debug('10%',text_polys)
+                # logger.debug('11%',text_tags)
                 # 保存其中的有效标签框，并修正文本框坐标溢出边界现象，多边形面积>1
                 text_polys, text_tags = check_and_validate_polys(text_polys, text_tags, (h, w))
-
+                #logger.debug('10:%s', text_polys)
+                #logger.debug('11:%s', text_tags)
                 # 如果是训练数据，就弄出来这2数据就够
                 if type=="validate":
                     images.append(im)
@@ -900,7 +910,7 @@ def generator(input_size=512,
                         # crop background，crop_background=True这个标志就是说，我要的是背景，不能给我包含任何框
                         im, text_polys, text_tags = crop_area(im, text_polys, text_tags, crop_background=True)
                         if text_polys.shape[0] > 0: #看！即使你切出来一块有框的图，我也不要，对！我！不！要！
-                            #logger.debug("没法搞到一块不包含文本框的纯背景啊:(%s",im_fn)
+                            logger.debug("没法搞到一块不包含文本框的纯背景啊:(%s",im_fn)
                             continue
 
                         # pad and resize image,最终图片变成512x512，图像不变形，padding补足
@@ -919,12 +929,14 @@ def generator(input_size=512,
                         geo_map          = np.zeros((input_size, input_size, geo_map_channels), dtype=np.float32)
                         training_mask    = np.ones((input_size, input_size), dtype=np.uint8)
                         # logger.debug("进程[%d],生成了一个不包含文本框的背景%s数据：score:%r,geo:%r,mask:%r,耗时:%f",
-                        #              os.getpid(),score_map.shape,geo_map.shape,training_mask.shape,name,
-                        #              (time.time()-start))
+                        #               os.getpid(),score_map.shape,geo_map.shape,training_mask.shape,name,
+                        #               (time.time()-start))
 
                     else: # > 3/8
                         # 这个是切出一个子图来，就用这个子图做训练了，我理解，还是跟数据增强差不多，可以大幅的提高图像的利用率啊
                         im, text_polys, text_tags = crop_area(im, text_polys, text_tags, crop_background=False)
+                        #logger.debug('12:%s',im_fn)
+                        #logger.debug('13:%s',text_polys)
                         if text_polys.shape[0] == 0:
                             logger.debug("文本框数量为0，image:%r,文本框：%r", im_fn.shape,text_polys.shape)
                             continue
@@ -998,7 +1010,9 @@ def generator(input_size=512,
             except BaseException as e:
                 logger.debug("Error happened:%s",str(e))
                 import traceback
-                traceback.logger.debug_exc()
+                #traceback.print_stack()
+                traceback.print_exc()
+                #traceback.logger.debug_exc()
                 continue
 
 
@@ -1011,14 +1025,17 @@ def get_batch(num_workers,**kwargs):
             while enqueuer.is_running():
                 if not enqueuer.queue.empty():
                     generator_output = enqueuer.queue.get()
+                    logger.debug("yield next data")
                     break
                 else:
-                    #logger.debug("queue is empty, which cause we are wating....")
+                    logger.debug("queue is empty, which cause we are waiting....")
                     time.sleep(1)
+            logger.debug("enqueuer is not running")
             yield generator_output
             generator_output = None
     finally:
         if enqueuer is not None:
+            logger.debug("enqueuer is not None")
             enqueuer.stop()
 
 

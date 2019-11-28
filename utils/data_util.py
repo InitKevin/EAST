@@ -55,14 +55,19 @@ class GeneratorEnqueuer():
             logger.info("启动的进程PID:%r",os.getpid())
             from utils.debug_tool import enable_pystack
             enable_pystack()
+            #logger.debug('1')
             while not self._stop_event.is_set():
+                #logger.debug('2')
                 try:
                     if self._use_multiprocessing or self.queue.qsize() < max_queue_size:
+                        #logger.debug('3')
                         load_time = time.time()
                         generator_output = next(self._generator)
                         # logger.debug("进程[%d],加载一批数据，时间%f",os.getpid(),(time.time() - load_time))
+                        #logger.debug('4')
                         self.queue.put(generator_output)
                     else:
+                        #logger.debug('5')
                         time.sleep(self.wait_time)
                 except Exception:
                     self._stop_event.set()

@@ -5,7 +5,7 @@ import numpy as np
 import tensorflow as tf
 from utils import data_util
 import lanms
-import model
+from nets import model
 import logging
 from utils.icdar import restore_rectangle
 
