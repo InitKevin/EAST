@@ -191,7 +191,6 @@ def main(argv=None):
                 continue
             else:
                 run_start = time.time()
-
                 ml, tl, _ ,summary_str = sess.run([model_loss,
                                       total_loss,
                                       train_op,
