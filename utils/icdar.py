@@ -1012,7 +1012,6 @@ def generator(input_size=512,
                 import traceback
                 #traceback.print_stack()
                 traceback.print_exc()
-                #traceback.logger.debug_exc()
                 continue
 
 

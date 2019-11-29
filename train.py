@@ -185,7 +185,7 @@ def main(argv=None):
             logger.debug('data:%s',data)
             logger.debug("[训练] 第%d步，加载了一批(%d)图片(%f秒)，准备训练...",step,FLAGS.batch_size,(time.time()-start))
 
-            #训练他们
+            # 训练他们
             if not data:
                 logger.debug("[训练] 第%d步，加载的data(%s)是空(%f秒)",step,data,(time.time()-start))
                 continue
@@ -221,6 +221,19 @@ def main(argv=None):
                                                                f_geometry,
                                                                input_images)
                     # 更新三个scalar tensor
+            # if step % FLAGS.validate_steps == 0:
+            #     logger.debug("保存checkpoint:",FLAGS.model_path + 'model.ckpt')
+            #     saver.save(sess, FLAGS.model_path + 'model.ckpt', global_step=global_step)
+            # 默认是1000步，validate一下
+                if step!=0 and step % FLAGS.validate_steps == 0:
+                    precision, recall, f1 = evaluator.validate(sess,
+                                                           FLAGS.validate_batch_num,
+                                                           FLAGS.batch_size,
+                                                           validate_data_generator,
+                                                           f_score,
+                                                           f_geometry,
+                                                           input_images)
+            	    # 更新三个scalar tensor
                     sess.run([tf.assign(v_f1, f1),
                               tf.assign(v_recall, recall),
                               tf.assign(v_precision, precision)])
@@ -236,7 +249,6 @@ def main(argv=None):
                     start = time.time()
                     logger.debug('Step {:06d}, model loss {:.4f}, total loss {:.4f}, {:.2f} seconds/step, {:.2f} examples/second'.format(
                         step, ml, tl, avg_time_per_step, avg_examples_per_second))
-
 
                 logger.debug("[训练] 第%d步结束，整体耗时(包括加载数据):%f",step,(time.time()-start))
 
