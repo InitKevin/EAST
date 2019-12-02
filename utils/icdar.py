@@ -648,8 +648,7 @@ def generate_rbox(im_size, polys, tags):
         # logger.debug('polys:%s', polys)
         # logger.debug('poly_tag:%s',poly_tag)
         poly = poly_tag[0]
-        # print("===============>>>>>")
-        # print(poly)
+        logger.debug('poly:%s', poly)
         tag = poly_tag[1]
 
 
