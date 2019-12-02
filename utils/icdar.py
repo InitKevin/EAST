@@ -297,9 +297,9 @@ def point_dist_to_line(p1, p2,      p3):
     # np.linalg.norm(p2 - p1)，是p1p2的长度，
     # 得到的，就是P3到p1,p2组成的的距离，
     # 你可以自己画一个平行四边形，面积是 底x高，现在面积已知，底就是p1p2，那高，就是p3到p1p2的距离
-    print('p1',p1)
-    print('p2',p2)
-    print('p3',p3)
+    # print('p1',p1)
+    # print('p2',p2)
+    # print('p3',p3)
     # pp = []
     # pp.append(p1)
     # pp.append(p2)
@@ -644,6 +644,7 @@ def generate_rbox(im_size, polys, tags):
 
     # polys.shape => [框数，4，2]
     for poly_idx, poly_tag in enumerate(zip(polys, tags)):
+        logger.debug('poly_idx:%s', poly_idx)
         # logger.debug('polys:%s', polys)
         # logger.debug('poly_tag:%s',poly_tag)
         poly = poly_tag[0]
@@ -702,6 +703,10 @@ def generate_rbox(im_size, polys, tags):
 
             # 看p2到p0p1的距离 > p3到p0p1的距离
             # 就是看p2,p3谁离直线p0p1远，就选谁画一条平行于p0p1的先作为新矩形的边
+            print('p0', p0)
+            print('p1', p1)
+            print('p2', p2)
+            print('p3', p3)
             if point_dist_to_line(p0, p1, p2) > point_dist_to_line(p0, p1, p3):
                 # 平行线经过p2 - parallel lines through p2，对，就是这个意思
                 if edge[1] == 0:
