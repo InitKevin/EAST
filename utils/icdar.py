@@ -810,10 +810,10 @@ def generate_rbox(im_size, polys, tags):
         # point_dist_to_line，这个函数之前用过，不多说了，最后一个参数是点，前两个参数，线上的2个点
         for y, x in xy_in_poly:
             point = np.array([x, y], dtype=np.float32)
-            print('p0_rect', p0_rect)
-            print('p1_rect', p1_rect)
-            print('p2_rect', p2_rect)
-            print('p3_rect', p3_rect)
+            # print('p0_rect', p0_rect)
+            # print('p1_rect', p1_rect)
+            # print('p2_rect', p2_rect)
+            # print('p3_rect', p3_rect)
             # top
             geo_map[y, x, 0] = point_dist_to_line(p0_rect, p1_rect, point)
             # right
@@ -1039,7 +1039,7 @@ def generator(input_size=512,
             except BaseException as e:
                 logger.debug("Error happened:%s",str(e))
                 import traceback
-                #traceback.print_stack()
+                traceback.print_stack()
                 traceback.print_exc()
                 continue
 
