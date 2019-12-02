@@ -190,9 +190,12 @@ def crop_area(im, polys, tags, crop_background=False, max_tries=50):
                                 (polys[:, :, 0] <= xmax) & \
                                 (polys[:, :, 1] >= ymin) & \
                                 (polys[:, :, 1] <= ymax)
+            #print('polys',polys)
+            #print('poly_axis_in_area',poly_axis_in_area)
             # 上面这句话是判断某个点在区域里，
-            # [N,4,2]，下面这步，是说，框的4个点都在区域里，
+            # [N,4,2]，下面这步，是说，框的4个点都在区域里
             selected_polys = np.where(np.sum(poly_axis_in_area, axis=1) == 4)[0]
+            #print('selected_polys',selected_polys)
         else:
             selected_polys = []
 
@@ -202,6 +205,8 @@ def crop_area(im, polys, tags, crop_background=False, max_tries=50):
                 return im[ymin:ymax+1, xmin:xmax+1, :], polys[selected_polys], tags[selected_polys]
             else:
                 continue
+   #######################################################################################
+
         # 把子图切出来
         im = im[ymin:ymax+1, xmin:xmax+1, :]
         # 得到切出来的子图中的那些框和tags
@@ -212,7 +217,6 @@ def crop_area(im, polys, tags, crop_background=False, max_tries=50):
         polys[:, :, 1] -= ymin
         # logger.debug("crop return:", im.shape, polys.shape, tags.shape)
         return im, polys, tags
-
     return im, polys, tags
 
 # 不想细看了，大概也能理解，就是缩小1/3后的那个框的4个坐标，返回的是
@@ -293,6 +297,15 @@ def point_dist_to_line(p1, p2,      p3):
     # np.linalg.norm(p2 - p1)，是p1p2的长度，
     # 得到的，就是P3到p1,p2组成的的距离，
     # 你可以自己画一个平行四边形，面积是 底x高，现在面积已知，底就是p1p2，那高，就是p3到p1p2的距离
+    print('p1',p1)
+    print('p2',p2)
+    print('p3',p3)
+    # pp = []
+    # pp.append(p1)
+    # pp.append(p2)
+    # pp.append(p3)
+    # if len(pp) == 3:
+    #     return np.linalg.norm(np.cross(p2 - p1, p1 - p3)) / np.linalg.norm(p2 - p1)
     return np.linalg.norm(np.cross(p2 - p1, p1 - p3)) / np.linalg.norm(p2 - p1)
 
 # 根据p1和p2来获取拟合的曲线 ax+by+c=0, 自己没看懂，还是田老师的帮助下才弄清楚
@@ -620,7 +633,6 @@ def restore_rectangle(origin, geometry):
 # 这个应该是最最核心的样本数据准备的过程了,im_size现在是512x512
 def generate_rbox(im_size, polys, tags):
     h, w = im_size
-
     # logger.debug("开始生成rbox数据：h:%d,w:%d",h,w)
 
     # 初始化3个蒙版，都是512x512
@@ -632,8 +644,11 @@ def generate_rbox(im_size, polys, tags):
 
     # polys.shape => [框数，4，2]
     for poly_idx, poly_tag in enumerate(zip(polys, tags)):
-        #logger.debug('10%s',poly_tag)
+        # logger.debug('polys:%s', polys)
+        # logger.debug('poly_tag:%s',poly_tag)
         poly = poly_tag[0]
+        # print("===============>>>>>")
+        # print(poly)
         tag = poly_tag[1]
 
 
@@ -805,6 +820,7 @@ input_score_maps: data[2],
 input_geo_maps: data[3],
 input_training_masks: data[4]})
 '''
+############################################
 def generator(input_size=512,
               batch_size=32,
               type=None,
@@ -825,8 +841,7 @@ def generator(input_size=512,
     logger.debug("启动[%s]数据集加载器",name)
     # 获得训练集路径下所有图片名字
     image_list = np.array(get_images(data_dir))
-    #print('image_list',image_list)
-    #logger.debug('11')
+    print('image_list',image_list)
     # index：总样本数
     index = np.arange(0, image_list.shape[0])
     print('index',index)
@@ -845,8 +860,8 @@ def generator(input_size=512,
             try:
                 # 读取图片
                 im_fn = image_list[i]
-                #logger.debug('13')
                 im = cv2.imread(im_fn)
+                #print('im',im)
                 logger.debug ("[%s]成功加载图片文件[%s]：",name,im_fn)
                 h, w, _ = im.shape
 
@@ -906,7 +921,7 @@ def generator(input_size=512,
                     # 这玩意预测出来，肯定score map都很低啊，而且，geo_map都为0，就是到各个框的上下左右都是0，何苦呢？不理解！！！？？？
                     start = time.time()
                     if np.random.rand() < background_ratio: #background_ratio=3/8，background_ratio是个啥东东？
-
+####################################################
                         # crop background，crop_background=True这个标志就是说，我要的是背景，不能给我包含任何框
                         im, text_polys, text_tags = crop_area(im, text_polys, text_tags, crop_background=True)
                         if text_polys.shape[0] > 0: #看！即使你切出来一块有框的图，我也不要，对！我！不！要！
@@ -921,7 +936,7 @@ def generator(input_size=512,
                         max_h_w_i = np.max([new_h, new_w, input_size]) # input_size是命令行参数，默认就是512，也没人改
                         im_padded = np.zeros((max_h_w_i, max_h_w_i, 3), dtype=np.uint8)
                         im_padded[:new_h, :new_w, :] = im.copy()
-                        im = cv2.resize(im_padded, dsize=(input_size, input_size)) # input_size = 512，看，这里强制给resize给
+                        im = cv2.resize(im_padded, dsize=(input_size, input_size)) # input_size = 512，看，这里强制给resize
 
                         # 如果和下面的else对比一下，就能知道，他并没有产生rbox的数据（即调用generate_rbox）
                         score_map        = np.zeros((input_size, input_size), dtype=np.uint8)
@@ -937,6 +952,7 @@ def generator(input_size=512,
                         im, text_polys, text_tags = crop_area(im, text_polys, text_tags, crop_background=False)
                         #logger.debug('12:%s',im_fn)
                         #logger.debug('13:%s',text_polys)
+                        #logger.debug('14:%d',text_polys.shape[0])
                         if text_polys.shape[0] == 0:
                             logger.debug("文本框数量为0，image:%r,文本框：%r", im_fn.shape,text_polys.shape)
                             continue

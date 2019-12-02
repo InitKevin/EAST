@@ -185,7 +185,7 @@ def main(argv=None):
             logger.debug('data:%s',data)
             logger.debug("[训练] 第%d步，加载了一批(%d)图片(%f秒)，准备训练...",step,FLAGS.batch_size,(time.time()-start))
 
-            # 训练他们
+            # 训练他们，（data是一个元组）
             if not data:
                 logger.debug("[训练] 第%d步，加载的data(%s)是空(%f秒)",step,data,(time.time()-start))
                 continue
@@ -195,7 +195,7 @@ def main(argv=None):
                                       total_loss,
                                       train_op,
                                       summary_op],
-                                     feed_dict={
+                                      feed_dict={
                                         input_images: data[0],
                                         input_score_maps: data[2],
                                         input_geo_maps: data[3],
@@ -219,19 +219,7 @@ def main(argv=None):
                                                                f_score,
                                                                f_geometry,
                                                                input_images)
-                    # 更新三个scalar tensor
-            # if step % FLAGS.validate_steps == 0:
-            #     logger.debug("保存checkpoint:",FLAGS.model_path + 'model.ckpt')
-            #     saver.save(sess, FLAGS.model_path + 'model.ckpt', global_step=global_step)
-            # 默认是1000步，validate一下
-                if step!=0 and step % FLAGS.validate_steps == 0:
-                    precision, recall, f1 = evaluator.validate(sess,
-                                                           FLAGS.validate_batch_num,
-                                                           FLAGS.batch_size,
-                                                           validate_data_generator,
-                                                           f_score,
-                                                           f_geometry,
-                                                           input_images)
+
             	    # 更新三个scalar tensor
                     sess.run([tf.assign(v_f1, f1),
                               tf.assign(v_recall, recall),
