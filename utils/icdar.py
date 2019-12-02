@@ -733,6 +733,10 @@ def generate_rbox(im_size, polys, tags):
             # 求这条平行线forward_opposite和edge_opposite的交点=> new p3，以及
             # 求这条平行线forward_opposite和edge的交点         => new p0
             # 我勒个去，我怎么觉得我圈出来一个平行四边形，而不是一个矩形啊，颠覆了我的假设认知了
+            print('p0', p0)
+            print('p1', p1)
+            print('new_p2', new_p2)
+            print('p3', p3)
             if point_dist_to_line(p1, new_p2, p0) > point_dist_to_line(p1, new_p2, p3):
                 # across p0
                 if forward_edge[1] == 0:
@@ -806,6 +810,10 @@ def generate_rbox(im_size, polys, tags):
         # point_dist_to_line，这个函数之前用过，不多说了，最后一个参数是点，前两个参数，线上的2个点
         for y, x in xy_in_poly:
             point = np.array([x, y], dtype=np.float32)
+            print('p0_rect', p0_rect)
+            print('p1_rect', p1_rect)
+            print('p2_rect', p2_rect)
+            print('p3_rect', p3_rect)
             # top
             geo_map[y, x, 0] = point_dist_to_line(p0_rect, p1_rect, point)
             # right
