@@ -15,7 +15,6 @@ FLAGS = tf.app.flags.FLAGS
 
 def get_images(dir):
     files = []
-    # print(dir)
     image_dir = os.path.join(dir,"images")
     # logger.debug("进程[%d]尝试加载目录中的图像：%s",os.getpid(),image_dir)
     for ext in ['jpg', 'png', 'jpeg', 'JPG','png']:
@@ -32,6 +31,19 @@ def get_images(dir):
     return files
 # data/images
 
+# 判断三点共线，https://blog.csdn.net/lym152898/article/details/53944018
+# 共线返回1，不共线返回0
+def on_a_line(a,b,c):
+    tempy1 = a[1] - b[1]
+    tempx1 = a[0] - b[0]
+    tempy2 = c[1] - a[1]
+    tempx2 = c[0] - a[0]
+    xp = tempy1 * tempx2
+    yp = tempy2 * tempx1
+    if abs(xp - yp) <= 1e-6:
+        return 1
+    else:
+        return 0
 
 def load_annoataion(p):
     '''
@@ -49,9 +61,15 @@ def load_annoataion(p):
             label = line[-1]
             # strip BOM. \ufeff for python3,  \xef\xbb\bf for python2
             line = [i.strip('\ufeff').strip('\xef\xbb\xbf') for i in line]
-
             x1, y1, x2, y2, x3, y3, x4, y4 = list(map(float, line[:8]))
-            text_polys.append([[x1, y1], [x2, y2], [x3, y3], [x4, y4]])
+
+            # 原图中有些四点坐标存在三点共线的情况，画出来的框是三角形，这部分样本直接舍弃
+            if on_a_line([x1,y1],[x2,y2],[x3,y3]) == 1  or on_a_line([x1,y1],[x2,y2],[x4,y4]) == 1 or \
+                    on_a_line([x1,y1],[x3,y3],[x4,y4]) == 1 or on_a_line([x2,y2],[x3,y3],[x4,y4]) == 1:
+                continue
+            else:
+                text_polys.append([[x1, y1], [x2, y2], [x3, y3], [x4, y4]])
+
             if label == '*' or label == '###':
                 text_tags.append(True)
             else:
@@ -163,7 +181,7 @@ def crop_area(im, polys, tags, crop_background=False, max_tries=50):
 
         # xx是随机找到2个x的坐标，x坐标是从w_array里面找到的为0值的数组下标，就是远航君说的随机找2个值为0点的意思，我有个问题，如果2个值挨着怎么办？都是一个区间里
         xx = np.random.choice(w_axis, size=2) # 比如得到[36,58]
-        xmin = np.min(xx) - pad_w # 都偏移宽的1/0？为何？ ,
+        xmin = np.min(xx) - pad_w # 都偏移宽的1/10？为何？ ,
         xmax = np.max(xx) - pad_w # 得到[16,38]，假设图像是200x200，xmin - (200/10), xmax - (200/10)
         xmin = np.clip(xmin, 0, w-1) # clip这个函数将将数组中的元素限制在a_min, a_max之间，大于a_max的就使得它等于 a_max，小于a_min,的就使得它等于a_min
         xmax = np.clip(xmax, 0, w-1) # 参考：https://blog.csdn.net/qq1483661204/article/details/78150203
@@ -190,12 +208,10 @@ def crop_area(im, polys, tags, crop_background=False, max_tries=50):
                                 (polys[:, :, 0] <= xmax) & \
                                 (polys[:, :, 1] >= ymin) & \
                                 (polys[:, :, 1] <= ymax)
-            #print('polys',polys)
-            #print('poly_axis_in_area',poly_axis_in_area)
+
             # 上面这句话是判断某个点在区域里，
             # [N,4,2]，下面这步，是说，框的4个点都在区域里
             selected_polys = np.where(np.sum(poly_axis_in_area, axis=1) == 4)[0]
-            #print('selected_polys',selected_polys)
         else:
             selected_polys = []
 
@@ -205,7 +221,6 @@ def crop_area(im, polys, tags, crop_background=False, max_tries=50):
                 return im[ymin:ymax+1, xmin:xmax+1, :], polys[selected_polys], tags[selected_polys]
             else:
                 continue
-   #######################################################################################
 
         # 把子图切出来
         im = im[ymin:ymax+1, xmin:xmax+1, :]
@@ -297,15 +312,6 @@ def point_dist_to_line(p1, p2,      p3):
     # np.linalg.norm(p2 - p1)，是p1p2的长度，
     # 得到的，就是P3到p1,p2组成的的距离，
     # 你可以自己画一个平行四边形，面积是 底x高，现在面积已知，底就是p1p2，那高，就是p3到p1p2的距离
-    # print('p1',p1)
-    # print('p2',p2)
-    # print('p3',p3)
-    # pp = []
-    # pp.append(p1)
-    # pp.append(p2)
-    # pp.append(p3)
-    # if len(pp) == 3:
-    #     return np.linalg.norm(np.cross(p2 - p1, p1 - p3)) / np.linalg.norm(p2 - p1)
     return np.linalg.norm(np.cross(p2 - p1, p1 - p3)) / np.linalg.norm(p2 - p1)
 
 # 根据p1和p2来获取拟合的曲线 ax+by+c=0, 自己没看懂，还是田老师的帮助下才弄清楚
@@ -350,7 +356,7 @@ def line_cross_point(line1, line2):
         y = k1*x + b1
     return np.array([x, y], dtype=np.float32)
 
-
+# 通过点向一条直线做垂线
 def line_verticle(line, point):
     # get the verticle line from line across point
     if line[1] == 0:
@@ -376,10 +382,10 @@ def rectangle_from_parallelogram(poly):
     #  np.dot(p1-p0, p3-p0)
     # -----------------------= cos(p03~p32的夹角)
     #   |p0-p1| * |p3-p0|
-    # 这步是算出平行四边形左下角的夹角
+    # 这步是算出平行四边形左上角的夹角
     angle_p0 = np.arccos(np.dot(p1-p0, p3-p0)/(np.linalg.norm(p0-p1) * np.linalg.norm(p3-p0)))
 
-    # 平行四边形左下角，小于90度
+    # 平行四边形左上角，小于90度
     if angle_p0 < 0.5 * np.pi:
         #横着的一个平行四边形
         if np.linalg.norm(p0 - p1) > np.linalg.norm(p0-p3):
@@ -387,11 +393,8 @@ def rectangle_from_parallelogram(poly):
             ## p0
             p2p3 = fit_line([p2[0], p3[0]], [p2[1], p3[1]])
             p2p3_verticle = line_verticle(p2p3, p0)# <-----这个是核心，是过p0做了一个垂直线，参考我这张图：http://www.piginzoo.com/images/20190828/1566987583219.jpg
-                                                   # 可能你担心好好一个平行四边形，你不是给切出了一块么，其实，没事，切不到原的文字框的，你看我这张图就能明白
             new_p3 = line_cross_point(p2p3, p2p3_verticle) # 好嘛~，终于得到我梦寐以求的矩形的左下角的点了，我梦寐以求的是这个矩形啊，new_p3只是副产品
 
-            ############ 这里有大疑问 ??? 这个会影响回归的效果，也就是计算那个框的精确性 ###########
-            ## p2，恩，接下来搞丫🏃p2，这块我理解不了，和我的图对比，我应该去搞P1啊，如果是他这样，会切掉一部分我的文本区域啊？？？！！！（大惑）
             p0p1 = fit_line([p0[0], p1[0]], [p0[1], p1[1]])
             p0p1_verticle = line_verticle(p0p1, p2)
             new_p1 = line_cross_point(p0p1, p0p1_verticle)
@@ -407,7 +410,7 @@ def rectangle_from_parallelogram(poly):
 
             new_p3 = line_cross_point(p0p3, p0p3_verticle)
             return np.array([p0, new_p1, p2, new_p3], dtype=np.float32)
-    # 平行四边形左下角，大于90度
+    # 平行四边形左上角，大于90度
     else:
         if np.linalg.norm(p0-p1) > np.linalg.norm(p0-p3):
             # p1 and p3
@@ -644,11 +647,7 @@ def generate_rbox(im_size, polys, tags):
 
     # polys.shape => [框数，4，2]
     for poly_idx, poly_tag in enumerate(zip(polys, tags)):
-        logger.debug('poly_idx:%s', poly_idx)
-        # logger.debug('polys:%s', polys)
-        # logger.debug('poly_tag:%s',poly_tag)
         poly = poly_tag[0]
-        logger.debug('poly:%s', poly)
         tag = poly_tag[1]
 
 
@@ -702,10 +701,6 @@ def generate_rbox(im_size, polys, tags):
 
             # 看p2到p0p1的距离 > p3到p0p1的距离
             # 就是看p2,p3谁离直线p0p1远，就选谁画一条平行于p0p1的先作为新矩形的边
-            print('p0', p0)
-            print('p1', p1)
-            print('p2', p2)
-            print('p3', p3)
             if point_dist_to_line(p0, p1, p2) > point_dist_to_line(p0, p1, p3):
                 # 平行线经过p2 - parallel lines through p2，对，就是这个意思
                 if edge[1] == 0:
@@ -732,10 +727,6 @@ def generate_rbox(im_size, polys, tags):
             # 求这条平行线forward_opposite和edge_opposite的交点=> new p3，以及
             # 求这条平行线forward_opposite和edge的交点         => new p0
             # 我勒个去，我怎么觉得我圈出来一个平行四边形，而不是一个矩形啊，颠覆了我的假设认知了
-            print('p0', p0)
-            print('p1', p1)
-            print('new_p2', new_p2)
-            print('p3', p3)
             if point_dist_to_line(p1, new_p2, p0) > point_dist_to_line(p1, new_p2, p3):
                 # across p0
                 if forward_edge[1] == 0:
@@ -752,7 +743,7 @@ def generate_rbox(im_size, polys, tags):
             new_p3 = line_cross_point(forward_opposite, edge_opposite)# 求这条平行线forward_opposite和edge_opposite的交点=> new p3
 
             # 果然是平行四边形啊，作者起了这个名字"parallelograms"，爱死你了 (^_^)
-            fitted_parallelograms.append([new_p0, new_p1, new_p2, new_p3, new_p0])
+            fitted_parallelograms.append([new_p0, new_p1, new_p2, new_p3, new_p0])# ???? 5点 why?
 
 
             # 上面不是画了了一个平行四边形了么？可是，用另外用一个边，也可以画出一个平行四边形啊
@@ -778,15 +769,13 @@ def generate_rbox(im_size, polys, tags):
             new_p2 = line_cross_point(backward_opposite, edge_opposite)
             fitted_parallelograms.append([new_p0, new_p1, new_p2, new_p3, new_p0])
 
-
             # 然后，我得到了2个平行四边形，我勒个去，我猜到了开头（以为要通过不规则四边形找一个规律的四边形），
             # 但是我没猜到结尾（我以为是画个矩形，却尼玛画出平行四边形，还是两个）
-
 
         # 找那个最大的平行四边形，恩，可以理解
         areas = [Polygon(t).area for t in fitted_parallelograms]
         parallelogram = np.array(fitted_parallelograms[np.argmin(areas)][:-1], dtype=np.float32)
-        # sort thie polygon
+        # sort the polygon
         parallelogram_coord_sum = np.sum(parallelogram, axis=1) #axis=1，什么鬼？是把x、y加到了一起,[[1,1],[2,2]]=>[2,4]
         min_coord_idx = np.argmin(parallelogram_coord_sum) # 实际上是找左上角，一般来讲是x+y最小的是左上角，你别跟我扯极端情况，
                                                            # 我自己画了一下，这事不是那么绝对，但是大部分是别太变态的情况，是这样的
@@ -797,7 +786,7 @@ def generate_rbox(im_size, polys, tags):
              (min_coord_idx + 2) % 4,
              (min_coord_idx + 3) % 4]]
 
-        # 算出套在平行四边形外面的框，我觉得里面的算法有问题，等XDJM们帮着我解惑？？？
+        # 算出套在平行四边形外面的外接矩形框
         rectange = rectangle_from_parallelogram(parallelogram)
 
         # 调整一下p0~p3的顺序，并且算出对应的夹角，恩，是的，夹角是在这里算出来的
@@ -809,10 +798,7 @@ def generate_rbox(im_size, polys, tags):
         # point_dist_to_line，这个函数之前用过，不多说了，最后一个参数是点，前两个参数，线上的2个点
         for y, x in xy_in_poly:
             point = np.array([x, y], dtype=np.float32)
-            # print('p0_rect', p0_rect)
-            # print('p1_rect', p1_rect)
-            # print('p2_rect', p2_rect)
-            # print('p3_rect', p3_rect)
+            print('xy_in_poly',xy_in_poly)
             # top
             geo_map[y, x, 0] = point_dist_to_line(p0_rect, p1_rect, point)
             # right
@@ -843,7 +829,6 @@ def generator(input_size=512,
     # 训练数据，返回那一坨东西，score map，geo_map,....
     if type=="train":
         data_dir=FLAGS.training_data_path
-        #logger.debug('10%s',data_dir)
         name="训练"
     # 测试数据，就一个图和labels就成了
     else:
@@ -853,11 +838,8 @@ def generator(input_size=512,
     logger.debug("启动[%s]数据集加载器",name)
     # 获得训练集路径下所有图片名字
     image_list = np.array(get_images(data_dir))
-    print('image_list',image_list)
     # index：总样本数
     index = np.arange(0, image_list.shape[0])
-    print('index',index)
-    #logger.debug('12')
     # pdb.set_trace(x`)
     while True:
         np.random.shuffle(index)
@@ -873,7 +855,6 @@ def generator(input_size=512,
                 # 读取图片
                 im_fn = image_list[i]
                 im = cv2.imread(im_fn)
-                #print('im',im)
                 logger.debug ("[%s]成功加载图片文件[%s]：",name,im_fn)
                 h, w, _ = im.shape
 
@@ -896,12 +877,9 @@ def generator(input_size=512,
                 #   377, 117, 463, 117, 465, 130, 378, 130, GenaxisTheatre
                 #   493, 115, 519, 115, 519, 131, 493, 131, [06]
                 text_polys, text_tags = load_annoataion(txt_fn) #4点标注，是不规则四边形，而不是一个旋转的矩形
-                # logger.debug('10%',text_polys)
-                # logger.debug('11%',text_tags)
                 # 保存其中的有效标签框，并修正文本框坐标溢出边界现象，多边形面积>1
                 text_polys, text_tags = check_and_validate_polys(text_polys, text_tags, (h, w))
-                #logger.debug('10:%s', text_polys)
-                #logger.debug('11:%s', text_tags)
+
                 # 如果是训练数据，就弄出来这2数据就够
                 if type=="validate":
                     images.append(im)
@@ -933,7 +911,6 @@ def generator(input_size=512,
                     # 这玩意预测出来，肯定score map都很低啊，而且，geo_map都为0，就是到各个框的上下左右都是0，何苦呢？不理解！！！？？？
                     start = time.time()
                     if np.random.rand() < background_ratio: #background_ratio=3/8，background_ratio是个啥东东？
-####################################################
                         # crop background，crop_background=True这个标志就是说，我要的是背景，不能给我包含任何框
                         im, text_polys, text_tags = crop_area(im, text_polys, text_tags, crop_background=True)
                         if text_polys.shape[0] > 0: #看！即使你切出来一块有框的图，我也不要，对！我！不！要！
@@ -962,9 +939,6 @@ def generator(input_size=512,
                     else: # > 3/8
                         # 这个是切出一个子图来，就用这个子图做训练了，我理解，还是跟数据增强差不多，可以大幅的提高图像的利用率啊
                         im, text_polys, text_tags = crop_area(im, text_polys, text_tags, crop_background=False)
-                        #logger.debug('12:%s',im_fn)
-                        #logger.debug('13:%s',text_polys)
-                        #logger.debug('14:%d',text_polys.shape[0])
                         if text_polys.shape[0] == 0:
                             logger.debug("文本框数量为0，image:%r,文本框：%r", im_fn.shape,text_polys.shape)
                             continue
@@ -986,7 +960,6 @@ def generator(input_size=512,
                         resize_h = input_size # 强制改成512了啊！
                         resize_w = input_size
                         im = cv2.resize(im, dsize=(resize_w, resize_h))
-
 
                         # 把标注坐标缩放
                         resize_ratio_3_x = resize_w/float(new_w)
