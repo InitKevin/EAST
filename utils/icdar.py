@@ -650,7 +650,6 @@ def generate_rbox(im_size, polys, tags):
         poly = poly_tag[0]
         tag = poly_tag[1]
 
-
         r = [None, None, None, None]
         for i in range(4):
             # np.linalg.norm(求范数)：https://blog.csdn.net/hqh131360239/article/details/79061535
@@ -1010,7 +1009,7 @@ def generator(input_size=512,
             except BaseException as e:
                 logger.debug("Error happened:%s",str(e))
                 import traceback
-                traceback.print_stack()
+                #traceback.print_stack()
                 traceback.print_exc()
                 continue
 
