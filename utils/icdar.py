@@ -798,7 +798,6 @@ def generate_rbox(im_size, polys, tags):
         # point_dist_to_line，这个函数之前用过，不多说了，最后一个参数是点，前两个参数，线上的2个点
         for y, x in xy_in_poly:
             point = np.array([x, y], dtype=np.float32)
-            print('xy_in_poly',xy_in_poly)
             # top
             geo_map[y, x, 0] = point_dist_to_line(p0_rect, p1_rect, point)
             # right

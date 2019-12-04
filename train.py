@@ -182,7 +182,7 @@ def main(argv=None):
             # 取出一个batch的数据
             start = time.time()
             data = next(data_generator)
-            logger.debug('data:%s',data)
+            #logger.debug('data:%s',data)
             logger.debug("[训练] 第%d步，加载了一批(%d)图片(%f秒)，准备训练...",step,FLAGS.batch_size,(time.time()-start))
 
             # 训练他们，（data是一个元组）
