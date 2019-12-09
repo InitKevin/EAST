@@ -196,7 +196,7 @@ def loss(y_true_cls, y_pred_cls,
     # scale classification loss to match the iou loss part
     classification_loss *= FLAGS.lambda_score # 调节因子=1
 
-
+    # IOU loss计算
     # d1 -> 距离top的长度, d2->right, d3->bottom, d4->left, theta->倾斜角度
     d1_gt,   d2_gt,   d3_gt,   d4_gt,   theta_gt   = tf.split(value=y_true_geo, num_or_size_splits=5, axis=3)
     d1_pred, d2_pred, d3_pred, d4_pred, theta_pred = tf.split(value=y_pred_geo, num_or_size_splits=5, axis=3)
@@ -216,7 +216,6 @@ def loss(y_true_cls, y_pred_cls,
     # 为何算最小+最小就是长、宽相交，这个你自己花个图就明白
     w_union = tf.minimum(d2_gt, d2_pred) + tf.minimum(d4_gt, d4_pred)
     h_union = tf.minimum(d1_gt, d1_pred) + tf.minimum(d3_gt, d3_pred)
-
 
     # 计算IoU
     area_intersect = w_union * h_union # 相交面积

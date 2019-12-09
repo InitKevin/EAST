@@ -31,7 +31,7 @@ def get_images(dir):
     return files
 # data/images
 
-# 判断三点共线，https://blog.csdn.net/lym152898/article/details/53944018
+# 判断三点共线，参考：https://blog.csdn.net/lym152898/article/details/53944018
 # 共线返回1，不共线返回0
 def on_a_line(a,b,c):
     tempy1 = a[1] - b[1]
@@ -462,6 +462,7 @@ def sort_rectangle(poly):
         #    (poly[p_lowest][0] - poly[p_lowest_right][0])
         angle = np.arctan(-(poly[p_lowest][1] - poly[p_lowest_right][1])/(poly[p_lowest][0] - poly[p_lowest_right][0]))
 
+
         # assert angle > 0
         if angle <= 0:
             logger.debug("角度<0: angle:%r,最低点：%r,最高点：%r",angle, poly[p_lowest], poly[p_lowest_right])
@@ -659,6 +660,7 @@ def generate_rbox(im_size, polys, tags):
                        np.linalg.norm(poly[i] - poly[(i - 1) % 4]))
         # score map
         shrinked_poly = shrink_poly(poly.copy(), r).astype(np.int32)[np.newaxis, :, :]
+        print('shrinked_poly',shrinked_poly)
         cv2.fillPoly(score_map, shrinked_poly, 1)
         cv2.fillPoly(poly_mask, shrinked_poly, poly_idx + 1) # ？？？
 
@@ -771,7 +773,7 @@ def generate_rbox(im_size, polys, tags):
             # 然后，我得到了2个平行四边形，我勒个去，我猜到了开头（以为要通过不规则四边形找一个规律的四边形），
             # 但是我没猜到结尾（我以为是画个矩形，却尼玛画出平行四边形，还是两个）
 
-        # 找那个最大的平行四边形，恩，可以理解
+        # 找那个最大的平行四边形，恩，可以理解  ？？？=====================>应该是找面积最小的平行四边形，因为论文中说了，我们要找的是文本框的最小的外接旋转矩形框
         areas = [Polygon(t).area for t in fitted_parallelograms]
         parallelogram = np.array(fitted_parallelograms[np.argmin(areas)][:-1], dtype=np.float32)
         # sort the polygon
@@ -905,7 +907,7 @@ def generator(input_size=512,
                     # and then a patch is randomly cropped from the image, back_ground ratio is used to
                     # crop some background training data that does not contain text. Anyway ,
                     # maybe there is better strategy for augmentation" -- argman
-                    # 我理解这个目的就是为了测试一些纯负样本，不过我给人觉得没必要啊，干嘛非要虐待自己，专搞一些背景出来虐自己呢？有啥好处呢？
+                    # 我理解这个目的就是为了测试一些纯负样本，不过我个人觉得没必要啊，干嘛非要虐待自己，专搞一些背景出来虐自己呢？有啥好处呢？
                     # 这玩意预测出来，肯定score map都很低啊，而且，geo_map都为0，就是到各个框的上下左右都是0，何苦呢？不理解！！！？？？
                     start = time.time()
                     if np.random.rand() < background_ratio: #background_ratio=3/8，background_ratio是个啥东东？

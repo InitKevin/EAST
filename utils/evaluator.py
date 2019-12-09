@@ -171,8 +171,8 @@ def many_to_one_match(detNum,conf,gtRectMat,detRectMat,recallMat,precisionMat):
 # 求出来的是a、b两个矩形，相交的面积
 def area(a, b):
     # logger.debug("a,b:%r,%r",a,b)
-    dx = min(a.xmax, b.xmax) - max(a.xmin, b.xmin) + 1
-    dy = min(a.ymax, b.ymax) - max(a.ymin, b.ymin) + 1
+    dx = min(a.xmax, b.xmax) - max(a.xmin, b.xmin) #+ 1
+    dy = min(a.ymax, b.ymax) - max(a.ymin, b.ymin) #+ 1
     if (dx >= 0) and (dy >= 0):
         return dx * dy
     else:
@@ -212,7 +212,6 @@ def evaluate(gt_points, detect_points, conf):
     # 得到所有的GT坐标，注意，这里的GT不是split的小框，是大框，即8个值，4个坐标点，就是对应的4边形的4个顶点
     for n in range(len(gt_points)):
         points = gt_points[n]
-
         # logger.debug(points)
         # convert x1,y1,x2,y2,x3,y3,x4,y4 to xmin,ymin,xmax,ymax
         if len(points) >= 8:
@@ -272,7 +271,7 @@ def evaluate(gt_points, detect_points, conf):
             rG = gtRects[gtNum]   # 某一个gt框
             rD = detRects[detNum] # 某一个探测的框
             intersected_area = area(rG, rD) # 算他们的相交面积
-            rgDimensions = ((rG.xmax - rG.xmin + 1) * (rG.ymax - rG.ymin + 1)) # GT的面积
+            rgDimensions = ((rG.xmax - rG.xmin + 1) * (rG.ymax - rG.ymin + 1)) # GT的面积  ================？？？不太明白为啥这样计算
             rdDimensions = ((rD.xmax - rD.xmin + 1) * (rD.ymax - rD.ymin + 1)) # 探测框的面积
             # 召回率：真正例/所有样本正例
             recallMat[gtNum, detNum] = 0 if rgDimensions == 0 else  intersected_area / rgDimensions

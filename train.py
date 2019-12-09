@@ -91,12 +91,12 @@ def main(argv=None):
     tf.summary.scalar("F1",v_f1)
 
     # 之前调整LR的方法，停掉
-    # learning_rate = tf.train.exponential_decay(FLAGS.learning_rate, global_step, decay_steps=10000, decay_rate=0.94,staircase=True)
-    # tf.summary.scalar('learning_rate', learning_rate)
-    # opt = tf.train.AdamOptimizer(learning_rate)
+    learning_rate = tf.train.exponential_decay(FLAGS.learning_rate, global_step, decay_steps=10000, decay_rate=0.94,staircase=True)
+    tf.summary.scalar('learning_rate', learning_rate)
+    opt = tf.train.AdamOptimizer(learning_rate)
 
     # 不适用动态调整的learning rate，Adam自己完全可以自己调节啊？我不太明白原作者为何要调整LR，尝试改掉
-    opt = tf.train.AdamOptimizer()
+    #opt = tf.train.AdamOptimizer()
 
     # split--把一个张量划分成几个子张量
     input_images_split = tf.split(input_images, len(gpus))
