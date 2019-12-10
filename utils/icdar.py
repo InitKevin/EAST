@@ -660,7 +660,7 @@ def generate_rbox(im_size, polys, tags):
                        np.linalg.norm(poly[i] - poly[(i - 1) % 4]))
         # score map
         shrinked_poly = shrink_poly(poly.copy(), r).astype(np.int32)[np.newaxis, :, :]
-        print('shrinked_poly',shrinked_poly)
+
         cv2.fillPoly(score_map, shrinked_poly, 1)
         cv2.fillPoly(poly_mask, shrinked_poly, poly_idx + 1) # ？？？
 
@@ -773,7 +773,7 @@ def generate_rbox(im_size, polys, tags):
             # 然后，我得到了2个平行四边形，我勒个去，我猜到了开头（以为要通过不规则四边形找一个规律的四边形），
             # 但是我没猜到结尾（我以为是画个矩形，却尼玛画出平行四边形，还是两个）
 
-        # 找那个最大的平行四边形，恩，可以理解  ？？？=====================>应该是找面积最小的平行四边形，因为论文中说了，我们要找的是文本框的最小的外接旋转矩形框
+        # 应该是找面积最小的平行四边形，因为论文中说了，我们要找的是文本框的最小的外接旋转矩形框
         areas = [Polygon(t).area for t in fitted_parallelograms]
         parallelogram = np.array(fitted_parallelograms[np.argmin(areas)][:-1], dtype=np.float32)
         # sort the polygon
@@ -1011,7 +1011,6 @@ def generator(input_size=512,
             except BaseException as e:
                 logger.debug("Error happened:%s",str(e))
                 import traceback
-                #traceback.print_stack()
                 traceback.print_exc()
                 continue
 

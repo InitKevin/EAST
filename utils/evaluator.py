@@ -166,13 +166,13 @@ def many_to_one_match(detNum,conf,gtRectMat,detRectMat,recallMat,precisionMat):
     else:
         return False, []
 
-# 算a，b代表的4边形的相交面积，ab都是矩形，
+# 算a，b代表的4边形的相交面积，ab都是矩形，  可参考：http://blog.sina.com.cn/s/blog_91d15bcb0102x0p4.html
 # xmax是右侧的x，xmin是左侧的x，ymax是下边的y，ymin是上边的y
 # 求出来的是a、b两个矩形，相交的面积
 def area(a, b):
     # logger.debug("a,b:%r,%r",a,b)
-    dx = min(a.xmax, b.xmax) - max(a.xmin, b.xmin) #+ 1
-    dy = min(a.ymax, b.ymax) - max(a.ymin, b.ymin) #+ 1
+    dx = min(a.xmax, b.xmax) - max(a.xmin, b.xmin) + 1
+    dy = min(a.ymax, b.ymax) - max(a.ymin, b.ymin) + 1
     if (dx >= 0) and (dy >= 0):
         return dx * dy
     else:
